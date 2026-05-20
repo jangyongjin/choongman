@@ -370,6 +370,9 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <button class="tab active" onclick="showHqTab('dashboard',this)">
       <i class="ti ti-layout-dashboard"></i> 발주 현황
     </button>
+    <button class="tab" onclick="showHqTab('edit',this)">
+      <i class="ti ti-edit"></i> 전표 수정
+    </button>
     <button class="tab" onclick="showHqTab('slip',this)">
       <i class="ti ti-file-invoice"></i> 납품 전표
     </button>
@@ -395,6 +398,11 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <button class="btn sm" onclick="loadOrders()"><i class="ti ti-refresh"></i> 새로고침</button>
     </div>
     <div id="hq-order-list"><div class="loading">불러오는 중...</div></div>
+  </div>
+
+  <!-- 전표 수정 -->
+  <div class="tab-content" id="hq-tab-edit">
+    <div id="hq-edit-list"><div class="loading">발주 현황 탭에서 먼저 발주를 불러와 주세요</div></div>
   </div>
 
   <!-- 납품 전표 -->
@@ -428,7 +436,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
 </div>
 
 <script>
-var API = 'https://script.google.com/macros/s/AKfycbycSIDtrHnbFSgc_RAzGz105EM914Ls3U1G7cLUn8ldGHi5ioJv__7em7n5r_8hHa8Z/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwsWvmvTqPqMBpJ63rLulRJ248-bTE311oBRPAhw3lFSzxwr9TWRizRj_kIgECRrbxY/exec';
 var CAT_NAMES = {M:'밀키트',C:'염지닭',S:'소스',B:'박스',U:'음료',P:'식품류',D:'주방용품',L:'홀용품'};
 
 var currentUser = null, currentRole = null;
@@ -538,7 +546,7 @@ function loadOrders() {
   fetchData(API + '?action=getOrders&store=' + encodeURIComponent(store), function(res) {
     if (res.result === 'success') {
       orders = res.orders;
-      if (currentRole === '본사') renderHqOrders();
+      if (currentRole === '본사') { renderHqOrders(); renderHqEditOrders(); }
       else renderStoreHistory();
     } else {
       listEl.innerHTML = '<div class="empty">불러오기 실패</div>';
@@ -845,6 +853,7 @@ function showHqTab(t, btn) {
   btn.classList.add('active');
   document.getElementById('hq-tab-'+t).classList.add('active');
   if (t==='dashboard') loadOrders();
+  if (t==='edit') { loadOrders(); setTimeout(renderHqEditOrders, 500); }
 }
 
 function logout() {
@@ -871,3 +880,131 @@ init();
 </script>
 </body>
 </html>
+<script>
+// ── 전표 수정 탭 렌더링 ─────────────────────────────────────
+function renderHqEditOrders() {
+  var el = document.getElementById('hq-edit-list');
+  var active = orders.filter(function(o) { return o.status !== '취소' && o.status !== '납품확정'; });
+  if (!active.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-check"></i> 수정할 발주가 없습니다</div>';
+    return;
+  }
+
+  el.innerHTML = active.map(function(o) {
+    var itemRows = o.items.map(function(item) {
+      var isExcluded = item.status === '제외';
+      return '<tr style="' + (isExcluded ? 'opacity:0.4;' : '') + '">' +
+        '<td style="font-size:11px;color:var(--text2)">' + item.code + '</td>' +
+        '<td>' + item.nameKo + '<div style="font-size:10px;color:var(--text2)">' + (item.nameVi||'') + '</div></td>' +
+        '<td style="text-align:right">' + item.price.toLocaleString() + '</td>' +
+        '<td style="text-align:center">' +
+          (isExcluded ? '<span style="color:var(--red);font-size:11px">제외됨</span>' :
+          '<div style="display:flex;align-items:center;justify-content:center;gap:4px">' +
+          '<button onclick="editQty(\'' + o.orderId + '\',\'' + o.store + '\',\'' + item.code + '\',-1,this)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">-</button>' +
+          '<input type="number" id="qty-' + o.orderId + '-' + item.code + '" value="' + item.confirmQty + '" min="0" style="width:50px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:2px">' +
+          '<button onclick="editQty(\'' + o.orderId + '\',\'' + o.store + '\',\'' + item.code + '\',1,this)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">+</button>' +
+          '</div>') +
+        '</td>' +
+        '<td style="text-align:center">' +
+          (isExcluded ? '' :
+          '<button onclick="excludeItem(\'' + o.orderId + '\',\'' + o.store + '\',\'' + item.code + '\')" style="font-size:11px;padding:3px 8px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:4px;cursor:pointer">제외</button>') +
+        '</td>' +
+        '</tr>';
+    }).join('');
+
+    return '<div class="card" style="margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div><strong style="font-size:15px;color:var(--red)">' + o.store + '</strong>' +
+        '<div style="font-size:12px;color:var(--text2);margin-top:2px">납품일: ' + o.delivDate + ' · ' + o.orderId + '</div></div>' +
+        '<button onclick="confirmDelivery(\'' + o.orderId + '\',\'' + o.store + '\')" style="padding:8px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✓ 납품 확정</button>' +
+      '</div>' +
+      '<div style="overflow-x:auto"><table class="slip-table">' +
+        '<thead><tr><th>코드</th><th>품목명</th><th style="text-align:right">단가</th><th style="text-align:center">확정수량</th><th style="text-align:center">관리</th></tr></thead>' +
+        '<tbody>' + itemRows + '</tbody>' +
+      '</table></div>' +
+      (o.message ? '<div class="msg-box" style="margin-top:8px">' + o.message + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function editQty(orderId, store, code, delta, btn) {
+  var input = document.getElementById('qty-' + orderId + '-' + code);
+  var newQty = Math.max(0, (parseInt(input.value)||0) + delta);
+  input.value = newQty;
+  saveQty(orderId, store, code, newQty);
+}
+
+function saveQty(orderId, store, code, qty) {
+  postData({
+    action: 'updateOrderItem',
+    orderId: orderId,
+    store: store,
+    itemCode: code,
+    qty: qty,
+    memo: '수량이 ' + qty + '개로 수정되었습니다.'
+  }, function(res) {
+    if (res.result === 'success') loadOrders();
+  });
+}
+
+function excludeItem(orderId, store, code) {
+  if (!confirm(code + ' 품목을 전표에서 제외하시겠습니까?')) return;
+  postData({
+    action: 'updateOrderItem',
+    orderId: orderId,
+    store: store,
+    itemCode: code,
+    exclude: true,
+    memo: code + ' 품목이 재고 부족으로 제외되었습니다.'
+  }, function(res) {
+    if (res.result === 'success') loadOrders();
+  });
+}
+
+function confirmDelivery(orderId, store) {
+  if (!confirm(store + ' 매장의 납품을 확정하시겠습니까?\n확정 후 매출 데이터로 저장됩니다.')) return;
+  postData({
+    action: 'confirmDelivery',
+    orderId: orderId,
+    store: store
+  }, function(res) {
+    if (res.result === 'success') {
+      alert('납품이 확정되었습니다! 매출 데이터에 저장되었어요.');
+      loadOrders();
+    } else {
+      alert('오류: ' + res.message);
+    }
+  });
+}
+
+// ── 매장 알림 ───────────────────────────────────────────────
+function checkNotifications() {
+  if (currentRole !== '점주') return;
+  fetchData(API + '?action=getNotifications&store=' + encodeURIComponent(currentUser), function(res) {
+    if (res.result === 'success' && res.notifications && res.notifications.length > 0) {
+      document.getElementById('notif-badge').style.display = 'block';
+      document.getElementById('notif-count').textContent = res.notifications.length;
+    } else {
+      document.getElementById('notif-badge').style.display = 'none';
+    }
+  });
+}
+
+function showNotifications() {
+  fetchData(API + '?action=getNotifications&store=' + encodeURIComponent(currentUser), function(res) {
+    if (res.result !== 'success' || !res.notifications.length) return;
+    var msg = '📋 알림 내용:\n\n';
+    res.notifications.forEach(function(n) {
+      if (n.type === '납품확정') msg += '✅ ' + n.orderId + ' 납품이 확정되었습니다.\n';
+      else if (n.type === '제외') msg += '❌ ' + n.orderId + ' - ' + n.itemCode + ' 품목이 제외되었습니다.\n';
+      else if (n.type === '수량변경') msg += '✏️ ' + n.orderId + ' - ' + n.itemCode + ' 수량이 ' + n.qty + '개로 변경되었습니다.\n';
+      msg += '   ' + n.memo + '\n\n';
+    });
+    alert(msg);
+    // 알림 확인 처리
+    postData({action:'clearNotification', store:currentUser}, function() {
+      document.getElementById('notif-badge').style.display = 'none';
+    });
+  });
+}
+</script>
