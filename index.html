@@ -911,6 +911,82 @@ function addQuickMsg(text) {
 
 init();
 
+// ── 품목 추가 모달 ─────────────────────────────────────────
+var addItemTargetOrder = null;
+var addItemTargetStore = null;
+var addItemSelected = null;
+
+function showAddItemModal(orderId, store) {
+  addItemTargetOrder = orderId;
+  addItemTargetStore = store;
+  addItemSelected = null;
+  document.getElementById('add-item-selected').textContent = '선택된 품목 없음';
+  document.getElementById('add-item-qty').value = 1;
+  document.getElementById('add-item-search').value = '';
+  filterAddItems();
+  document.getElementById('add-item-modal').style.display = 'block';
+}
+
+function closeAddItemModal() {
+  document.getElementById('add-item-modal').style.display = 'none';
+  addItemTargetOrder = null;
+  addItemTargetStore = null;
+  addItemSelected = null;
+}
+
+function filterAddItems() {
+  var q = document.getElementById('add-item-search').value.toLowerCase();
+  var filtered = allItems.filter(function(i) {
+    return !q || i.nameKo.toLowerCase().indexOf(q) >= 0 || i.nameVi.toLowerCase().indexOf(q) >= 0 || i.code.toLowerCase().indexOf(q) >= 0;
+  });
+  document.getElementById('add-item-list').innerHTML = filtered.map(function(item) {
+    var isSelected = addItemSelected && addItemSelected.code === item.code;
+    return '<div onclick="selectAddItem(\'' + item.code + '\')" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:' + (isSelected ? 'var(--red-light)' : 'var(--bg2)') + ';border:1.5px solid ' + (isSelected ? 'var(--red)' : 'transparent') + '">' +
+      '<div style="font-weight:600;font-size:13px">' + item.nameKo + ' <span style="color:var(--text2);font-size:11px">(' + item.code + ')</span></div>' +
+      '<div style="font-size:11px;color:var(--text2)">' + item.nameVi + ' · ' + item.price.toLocaleString() + 'đ</div>' +
+      '</div>';
+  }).join('');
+}
+
+function selectAddItem(code) {
+  addItemSelected = allItems.find(function(i) { return i.code === code; });
+  if (addItemSelected) {
+    document.getElementById('add-item-selected').innerHTML = '<strong style="color:var(--red)">' + addItemSelected.nameKo + '</strong> · ' + addItemSelected.price.toLocaleString() + 'đ 선택됨';
+  }
+  filterAddItems();
+}
+
+function chgAddQty(d) {
+  var input = document.getElementById('add-item-qty');
+  input.value = Math.max(1, (parseInt(input.value)||1) + d);
+}
+
+function addItemToOrder() {
+  if (!addItemSelected) { alert('품목을 선택해주세요!'); return; }
+  var qty = parseInt(document.getElementById('add-item-qty').value) || 1;
+  postData({
+    action: 'addOrderItem',
+    orderId: addItemTargetOrder,
+    store: addItemTargetStore,
+    item: {
+      code: addItemSelected.code,
+      nameKo: addItemSelected.nameKo,
+      nameVi: addItemSelected.nameVi,
+      qty: qty,
+      price: addItemSelected.price
+    }
+  }, function(res) {
+    if (res.result === 'success') {
+      alert(addItemSelected.nameKo + ' ' + qty + '개가 추가되었습니다!');
+      closeAddItemModal();
+      loadOrders();
+      setTimeout(renderHqEditOrders, 800);
+    } else {
+      alert('오류: ' + res.message);
+    }
+  });
+}
+
 function printSlip(slipId) {
   // 해당 매장 전표만 인쇄
   var el = document.getElementById(slipId);
@@ -932,6 +1008,28 @@ function togglePrintBtns() {
   btns.forEach(function(b) { b.style.display = showing ? 'none' : 'block'; });
 }
 </script>
+<!-- 품목 추가 모달 -->
+<div id="add-item-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto">
+  <div style="background:#fff;margin:20px auto;max-width:500px;border-radius:16px;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <strong style="font-size:16px">품목 추가</strong>
+      <button onclick="closeAddItemModal()" style="background:none;border:none;font-size:20px;cursor:pointer">×</button>
+    </div>
+    <input type="text" id="add-item-search" placeholder="품목명 검색..." oninput="filterAddItems()" 
+      style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:12px">
+    <div id="add-item-list" style="max-height:300px;overflow-y:auto"></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div id="add-item-selected" style="font-size:13px;color:var(--text2);margin-bottom:8px">선택된 품목 없음</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <label style="font-size:13px">수량:</label>
+        <button onclick="chgAddQty(-1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">-</button>
+        <input type="number" id="add-item-qty" value="1" min="1" style="width:60px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:4px">
+        <button onclick="chgAddQty(1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">+</button>
+      </div>
+      <button onclick="addItemToOrder()" style="width:100%;padding:12px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">추가하기</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
 <script>
@@ -977,6 +1075,9 @@ function renderHqEditOrders() {
         '<tbody>' + itemRows + '</tbody>' +
       '</table></div>' +
       (o.message ? '<div class="msg-box" style="margin-top:8px">' + o.message + '</div>' : '') +
+      '<div style="margin-top:10px;text-align:right">' +
+        '<button onclick="showAddItemModal(\'' + o.orderId + '\',\'' + o.store + '\')" style="padding:7px 14px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">+ 품목 추가</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
