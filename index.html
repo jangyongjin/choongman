@@ -745,7 +745,9 @@ function generateSlip() {
   var slipNo = document.getElementById('hq-slip-no').value;
   var useVat = document.getElementById('vat-check').checked;
   var vatRate = parseFloat(document.getElementById('vat-rate').value) || 10;
-  var activeOrders = orders.filter(function(o) { return o.status !== '취소'; });
+  var activeOrders = orders.filter(function(o) {
+    return o.status !== '취소' && o.delivDate === slipDate;
+  });
   if (!activeOrders.length) {
     document.getElementById('hq-slip-output').innerHTML = '<div class="card"><div class="empty">발주 내역이 없습니다</div></div>';
     return;
