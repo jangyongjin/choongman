@@ -772,15 +772,27 @@ function generateSlip() {
     return parts[0] + '-' + (parts[1].length===1?'0'+parts[1]:parts[1]) + '-' + (parts[2].length===1?'0'+parts[2]:parts[2]);
   }
   // 발주일 기준 필터
+  function matchOrderDate(o) {
+    if (!orderDate) return true;
+    // time 형식: "2026-05-20 10:19:02" 또는 "Wed May 20 2026 ..."
+    var t = o.time || '';
+    var dt = new Date(t);
+    if (!isNaN(dt.getTime())) {
+      var y = dt.getFullYear();
+      var m = dt.getMonth()+1;
+      var day = dt.getDate();
+      var dStr = y + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
+      return dStr === orderDate;
+    }
+    return t.indexOf(orderDate) >= 0;
+  }
   var activeOrders = orders.filter(function(o) {
-    var oDate = normalizeDate(o.time ? o.time.split(' ')[0] : '');
-    return o.status === '납품확정' && (!orderDate || oDate === orderDate);
+    return o.status === '납품확정' && matchOrderDate(o);
   });
   // 납품확정이 없으면 접수 상태도 포함
   if (!activeOrders.length) {
     activeOrders = orders.filter(function(o) {
-      var oDate = normalizeDate(o.time ? o.time.split(' ')[0] : '');
-      return o.status !== '취소' && (!orderDate || oDate === orderDate);
+      return o.status !== '취소' && matchOrderDate(o);
     });
   }
   if (!activeOrders.length) {
