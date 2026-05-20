@@ -753,8 +753,14 @@ function generateSlip() {
     return parts[0] + '-' + (parts[1].length===1?'0'+parts[1]:parts[1]) + '-' + (parts[2].length===1?'0'+parts[2]:parts[2]);
   }
   var activeOrders = orders.filter(function(o) {
-    return o.status === '납품확정' && normalizeDate(o.delivDate) === slipDate;
+    return (o.status === '납품확정') && normalizeDate(o.delivDate) === slipDate;
   });
+  // 납품확정이 없으면 접수 상태도 포함
+  if (!activeOrders.length) {
+    activeOrders = orders.filter(function(o) {
+      return o.status !== '취소' && normalizeDate(o.delivDate) === slipDate;
+    });
+  }
   if (!activeOrders.length) {
     document.getElementById('hq-slip-output').innerHTML = '<div class="card"><div class="empty">발주 내역이 없습니다</div></div>';
     return;
@@ -775,7 +781,7 @@ function generateSlip() {
     storeOrders.forEach(function(o) {
       o.items.forEach(function(i) {
         if (i.status === '제외') return; // 제외된 품목 건너뜀
-        var confirmQty = Number(i.confirmQty) || Number(i.qty);
+        var confirmQty = (Number(i.confirmQty) > 0) ? Number(i.confirmQty) : Number(i.qty);
         if (confirmQty <= 0) return; // 수량 0 건너뜀
         if (!agg[i.code]) agg[i.code] = {code:i.code, nameKo:i.nameKo, nameVi:i.nameVi||'', price:Number(i.price)||0, qty:0};
         agg[i.code].qty += confirmQty;
