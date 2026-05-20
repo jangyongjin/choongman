@@ -788,7 +788,7 @@ function generateSlip() {
         '</tr>';
     }).join('');
 
-    return '<div class="card" style="margin-bottom:20px;page-break-after:always">' +
+    return '<div class="card" id="slip-' + store.replace(/\s/g,'_') + '" style="margin-bottom:20px;page-break-after:always">' +
       '<div style="text-align:center;padding-bottom:14px;margin-bottom:14px;border-bottom:1.5px solid var(--border)">' +
       '<div style="color:var(--red);font-size:13px;font-weight:700;letter-spacing:0.08em;margin-bottom:4px">CHOONG MAN</div>' +
       '<div style="font-size:20px;font-weight:700">납품 전표 · Phiếu Giao Hàng</div>' +
@@ -822,6 +822,10 @@ function generateSlip() {
       '<div>Người giao: _______________</div><div>Người nhận: _______________</div>' +
       '</div>' +
       '<div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center">생성: ' + new Date().toLocaleString('ko-KR') + '</div>' +
+      '<div style="margin-top:10px;text-align:right;display:none" class="no-print">' +
+      '<button class="btn sm" onclick="printSlip(\'slip-' + store.replace(/\s/g,'_') + '\')" style="background:var(--red);color:#fff;border:none">' +
+      '<i class="ti ti-printer"></i> ' + store + ' 인쇄</button>' +
+      '</div>' +
       '</div>';
   }).join('');
 
@@ -829,6 +833,7 @@ function generateSlip() {
     '<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px;display:flex;align-items:center;justify-content:space-between">' +
     '<span>📋 <strong>' + storeList.length + '개 매장</strong> 전표 생성됨</span>' +
     '<button class="btn primary sm" onclick="window.print()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
+    '<button class="btn sm" onclick="togglePrintBtns()" style="margin-left:6px"><i class="ti ti-printer"></i> 매장별 인쇄</button>' +
     '</div>' +
     allSlipsHtml;
 }
@@ -877,6 +882,27 @@ function addQuickMsg(text) {
 }
 
 init();
+
+function printSlip(slipId) {
+  // 해당 매장 전표만 인쇄
+  var el = document.getElementById(slipId);
+  if (!el) return;
+  var printWin = window.open('', '_blank', 'width=800,height=600');
+  printWin.document.write('<html><head><title>납품전표</title>');
+  printWin.document.write('<style>body{font-family:sans-serif;padding:20px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px} th{background:#2E4057;color:#fff} .slip-total td{font-weight:bold;background:#D9E1EC}</style>');
+  printWin.document.write('</head><body>');
+  printWin.document.write(el.innerHTML);
+  printWin.document.write('</body></html>');
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(function() { printWin.print(); printWin.close(); }, 500);
+}
+
+function togglePrintBtns() {
+  var btns = document.querySelectorAll('#hq-slip-output .no-print');
+  var showing = btns[0] && btns[0].style.display !== 'none';
+  btns.forEach(function(b) { b.style.display = showing ? 'none' : 'block'; });
+}
 </script>
 </body>
 </html>
