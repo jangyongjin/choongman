@@ -775,15 +775,22 @@ function generateSlip() {
   function matchOrderDate(o) {
     if (!orderDate) return true;
     var t = o.time || '';
-    // 모든 형식 처리: "Wed May 20 2026...", "2026-05-20 10:19:02"
+    // "Wed May 20 2026 15:38:42 GMT+0700" 형식에서 날짜만 추출
+    // GMT+0700이 이미 포함되어 있으므로 그대로 파싱
     var dt = new Date(t);
     if (!isNaN(dt.getTime())) {
-      // 베트남 시간대(UTC+7) 기준으로 날짜 추출
-      var utc = dt.getTime() + (dt.getTimezoneOffset() * 60000);
-      var vn = new Date(utc + (7 * 3600000));
-      var y = vn.getFullYear();
-      var m = vn.getMonth()+1;
-      var day = vn.getDate();
+      // GMT+0700 오프셋이 이미 반영되어 있으므로 로컬 기준으로 추출
+      var y = dt.getFullYear();
+      var m = dt.getMonth()+1;
+      var day = dt.getDate();
+      // 브라우저 로컬 시간대와 GMT+0700 차이 보정
+      var offset = dt.getTimezoneOffset() + 420; // 420 = 7*60 (GMT+7)
+      if (offset !== 0) {
+        var adjusted = new Date(dt.getTime() + offset * 60000);
+        y = adjusted.getFullYear();
+        m = adjusted.getMonth()+1;
+        day = adjusted.getDate();
+      }
       var dStr = y + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
       return dStr === orderDate;
     }
