@@ -269,7 +269,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <div class="form-row">
         <div class="form-group" style="margin:0">
           <label>발주일</label>
-          <input type="date" id="s-delivery-date" readonly style="background:var(--bg2);color:var(--text2)">
+          <input type="date" id="s-delivery-date" readonly style="background:var(--bg2);color:var(--text2);cursor:not-allowed">
         </div>
         <div class="form-group" style="margin:0">
           <label>배송 시간</label>
@@ -412,8 +412,14 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <div class="form-row">
         <div class="form-group" style="margin:0">
           <label>발주일</label>
+          <input type="date" id="hq-order-date">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>납품일</label>
           <input type="date" id="hq-slip-date">
         </div>
+      </div>
+      <div class="form-row" style="margin-top:8px">
         <div class="form-group" style="margin:0">
           <label>전표 번호</label>
           <input type="text" id="hq-slip-no">
@@ -445,9 +451,11 @@ var allItems = [], selectedItems = {}, orders = [], currentCat = 'ALL';
 function init() {
   var d = new Date();
   var tom = new Date(d); tom.setDate(d.getDate()+1);
-  var ts = tom.toISOString().split('T')[0];
-  document.getElementById('s-delivery-date').value = ts;
-  document.getElementById('hq-slip-date').value = ts;
+  var today = d.toISOString().split('T')[0];
+  var tomorrow = tom.toISOString().split('T')[0];
+  document.getElementById('s-delivery-date').value = today;
+  document.getElementById('hq-slip-date').value = tomorrow;
+  document.getElementById('hq-order-date').value = today;
   var dn = 'DN-' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-001';
   document.getElementById('hq-slip-no').value = dn;
 }
@@ -745,6 +753,7 @@ function toggleVat() {
 
 function generateSlip() {
   var slipDate = document.getElementById('hq-slip-date').value;
+  var orderDate = document.getElementById('hq-order-date').value;
   var slipNo = document.getElementById('hq-slip-no').value;
   var useVat = document.getElementById('vat-check').checked;
   var vatRate = parseFloat(document.getElementById('vat-rate').value) || 10;
@@ -762,13 +771,16 @@ function generateSlip() {
     if (parts.length !== 3) return d;
     return parts[0] + '-' + (parts[1].length===1?'0'+parts[1]:parts[1]) + '-' + (parts[2].length===1?'0'+parts[2]:parts[2]);
   }
+  // 발주일 기준 필터
   var activeOrders = orders.filter(function(o) {
-    return (o.status === '납품확정') && normalizeDate(o.delivDate) === slipDate;
+    var oDate = normalizeDate(o.time ? o.time.split(' ')[0] : '');
+    return o.status === '납품확정' && (!orderDate || oDate === orderDate);
   });
   // 납품확정이 없으면 접수 상태도 포함
   if (!activeOrders.length) {
     activeOrders = orders.filter(function(o) {
-      return o.status !== '취소' && normalizeDate(o.delivDate) === slipDate;
+      var oDate = normalizeDate(o.time ? o.time.split(' ')[0] : '');
+      return o.status !== '취소' && (!orderDate || oDate === orderDate);
     });
   }
   if (!activeOrders.length) {
@@ -823,6 +835,7 @@ function generateSlip() {
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:12px">' +
       '<div><span style="color:var(--text2)">Cửa hàng: </span><strong style="font-size:14px;color:var(--red)">' + store + '</strong></div>' +
+      '<div><span style="color:var(--text2)">Ngày đặt: </span><strong>' + (orderDate||'-') + '</strong></div>' +
       '<div><span style="color:var(--text2)">Ngày giao: </span><strong>' + slipDate + '</strong></div>' +
       '<div><span style="color:var(--text2)">Số phiếu: </span><strong>' + storeNo + '</strong></div>' +
       '<div><span style="color:var(--text2)">Thuế VAT: </span><strong>' + (useVat ? vatRate + '%' : 'Không áp dụng') + '</strong></div>' +
