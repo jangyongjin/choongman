@@ -415,12 +415,6 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
           <input type="date" id="hq-order-date">
         </div>
         <div class="form-group" style="margin:0">
-          <label>납품일</label>
-          <input type="date" id="hq-slip-date">
-        </div>
-      </div>
-      <div class="form-row" style="margin-top:8px">
-        <div class="form-group" style="margin:0">
           <label>전표 번호</label>
           <input type="text" id="hq-slip-no">
         </div>
@@ -454,8 +448,8 @@ function init() {
   var today = d.toISOString().split('T')[0];
   var tomorrow = tom.toISOString().split('T')[0];
   document.getElementById('s-delivery-date').value = today;
-  document.getElementById('hq-slip-date').value = tomorrow;
   document.getElementById('hq-order-date').value = today;
+
   var dn = 'DN-' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-001';
   document.getElementById('hq-slip-no').value = dn;
 }
@@ -752,7 +746,6 @@ function toggleVat() {
 }
 
 function generateSlip() {
-  var slipDate = document.getElementById('hq-slip-date').value;
   var orderDate = document.getElementById('hq-order-date').value;
   var slipNo = document.getElementById('hq-slip-no').value;
   var useVat = document.getElementById('vat-check').checked;
@@ -783,14 +776,8 @@ function generateSlip() {
       var y = dt.getFullYear();
       var m = dt.getMonth()+1;
       var day = dt.getDate();
-      // 브라우저 로컬 시간대와 GMT+0700 차이 보정
-      var offset = dt.getTimezoneOffset() + 420; // 420 = 7*60 (GMT+7)
-      if (offset !== 0) {
-        var adjusted = new Date(dt.getTime() + offset * 60000);
-        y = adjusted.getFullYear();
-        m = adjusted.getMonth()+1;
-        day = adjusted.getDate();
-      }
+      // GMT+0700이 이미 포함된 문자열이므로 그대로 파싱하면 됨
+      // 별도 보정 불필요
       var dStr = y + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
       return dStr === orderDate;
     }
@@ -851,9 +838,8 @@ function generateSlip() {
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:12px">' +
       '<div><span style="color:var(--text2)">Cửa hàng: </span><strong style="font-size:14px;color:var(--red)">' + store + '</strong></div>' +
-      '<div><span style="color:var(--text2)">Ngày đặt: </span><strong>' + (orderDate||'-') + '</strong></div>' +
-      '<div><span style="color:var(--text2)">Ngày giao: </span><strong>' + slipDate + '</strong></div>' +
       '<div><span style="color:var(--text2)">Số phiếu: </span><strong>' + storeNo + '</strong></div>' +
+      '<div><span style="color:var(--text2)">Ngày giao: </span><strong class="slip-deliv-date">-</strong></div>' +
       '<div><span style="color:var(--text2)">Thuế VAT: </span><strong>' + (useVat ? vatRate + '%' : 'Không áp dụng') + '</strong></div>' +
       '</div>' +
       (memo ? '<div style="background:var(--red-light);border-left:3px solid var(--red);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;color:var(--red-dark)"><strong>메모:</strong> ' + memo + '</div>' : '') +
@@ -889,7 +875,7 @@ function generateSlip() {
   document.getElementById('hq-slip-output').innerHTML =
     '<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px;display:flex;align-items:center;justify-content:space-between">' +
     '<span>📋 <strong>' + storeList.length + '개 매장</strong> 전표 생성됨</span>' +
-    '<button class="btn primary sm" onclick="window.print()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
+    '<button class="btn primary sm" onclick="askDelivDateAndPrint()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
     '<button class="btn sm" onclick="togglePrintBtns()" style="margin-left:6px"><i class="ti ti-printer"></i> 매장별 인쇄</button>' +
     '</div>' +
     allSlipsHtml;
@@ -1028,6 +1014,17 @@ function addItemToOrder() {
 }
 
 function printSlip(slipId) {
+  var delivDate = prompt('납품일을 입력하세요 (예: 2026-05-21):',
+    (function() {
+      var t = new Date(); t.setDate(t.getDate()+1);
+      return t.toISOString().split('T')[0];
+    })()
+  );
+  if (!delivDate) return;
+  // 전표에 납품일 업데이트
+  document.querySelectorAll('.slip-deliv-date').forEach(function(el) {
+    el.textContent = delivDate;
+  });
   // 해당 매장 전표만 인쇄
   var el = document.getElementById(slipId);
   if (!el) return;
@@ -1040,6 +1037,21 @@ function printSlip(slipId) {
   printWin.document.close();
   printWin.focus();
   setTimeout(function() { printWin.print(); printWin.close(); }, 500);
+}
+
+function askDelivDateAndPrint() {
+  var delivDate = prompt('납품일을 입력하세요 (예: 2026-05-21):', 
+    (function() {
+      var t = new Date(); t.setDate(t.getDate()+1);
+      return t.toISOString().split('T')[0];
+    })()
+  );
+  if (!delivDate) return;
+  // 전표에 납품일 업데이트
+  document.querySelectorAll('.slip-deliv-date').forEach(function(el) {
+    el.textContent = delivDate;
+  });
+  window.print();
 }
 
 function togglePrintBtns() {
