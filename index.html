@@ -745,8 +745,15 @@ function generateSlip() {
   var slipNo = document.getElementById('hq-slip-no').value;
   var useVat = document.getElementById('vat-check').checked;
   var vatRate = parseFloat(document.getElementById('vat-rate').value) || 10;
+  // 날짜 형식 통일 (2026-5-21 → 2026-05-21)
+  function normalizeDate(d) {
+    if (!d) return '';
+    var parts = d.split('-');
+    if (parts.length !== 3) return d;
+    return parts[0] + '-' + (parts[1].length===1?'0'+parts[1]:parts[1]) + '-' + (parts[2].length===1?'0'+parts[2]:parts[2]);
+  }
   var activeOrders = orders.filter(function(o) {
-    return o.status !== '취소' && o.delivDate === slipDate;
+    return o.status !== '취소' && normalizeDate(o.delivDate) === slipDate;
   });
   if (!activeOrders.length) {
     document.getElementById('hq-slip-output').innerHTML = '<div class="card"><div class="empty">발주 내역이 없습니다</div></div>';
