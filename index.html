@@ -923,8 +923,19 @@ function showAddItemModal(orderId, store) {
   document.getElementById('add-item-selected').textContent = '선택된 품목 없음';
   document.getElementById('add-item-qty').value = 1;
   document.getElementById('add-item-search').value = '';
-  filterAddItems();
   document.getElementById('add-item-modal').style.display = 'block';
+  // 품목이 없으면 먼저 로드
+  if (!allItems || allItems.length === 0) {
+    document.getElementById('add-item-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)">품목 불러오는 중...</div>';
+    fetchData(API + '?action=getItems', function(res) {
+      if (res.result === 'success') {
+        allItems = res.items;
+        filterAddItems();
+      }
+    });
+  } else {
+    filterAddItems();
+  }
 }
 
 function closeAddItemModal() {
