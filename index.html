@@ -745,9 +745,16 @@ function generateSlip() {
   var slipNo = document.getElementById('hq-slip-no').value;
   var useVat = document.getElementById('vat-check').checked;
   var vatRate = parseFloat(document.getElementById('vat-rate').value) || 10;
-  // 날짜 형식 통일 (2026-5-21 → 2026-05-21)
+  // 날짜 형식 통일 (다양한 형식 → 2026-05-21)
   function normalizeDate(d) {
     if (!d) return '';
+    var dt = new Date(d);
+    if (!isNaN(dt.getTime())) {
+      var y = dt.getFullYear();
+      var m = dt.getMonth()+1;
+      var day = dt.getDate();
+      return y + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
+    }
     var parts = d.split('-');
     if (parts.length !== 3) return d;
     return parts[0] + '-' + (parts[1].length===1?'0'+parts[1]:parts[1]) + '-' + (parts[2].length===1?'0'+parts[2]:parts[2]);
