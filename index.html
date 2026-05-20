@@ -761,12 +761,15 @@ function generateSlip() {
     var storeNo = slipNo + '-' + (idx+1);
     var memo = storeOrders.map(function(o) { return o.message; }).filter(Boolean).join(' / ');
 
-    // 품목 집계
+    // 품목 집계 (제외된 품목 제외, 확정수량 사용)
     var agg = {};
     storeOrders.forEach(function(o) {
       o.items.forEach(function(i) {
+        if (i.status === '제외') return; // 제외된 품목 건너뜀
+        var confirmQty = Number(i.confirmQty) || Number(i.qty);
+        if (confirmQty <= 0) return; // 수량 0 건너뜀
         if (!agg[i.code]) agg[i.code] = {code:i.code, nameKo:i.nameKo, nameVi:i.nameVi||'', price:Number(i.price)||0, qty:0};
-        agg[i.code].qty += Number(i.qty);
+        agg[i.code].qty += confirmQty;
       });
     });
     var rows = Object.values(agg).sort(function(a,b) { return a.code.localeCompare(b.code); });
