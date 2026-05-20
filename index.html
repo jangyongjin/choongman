@@ -546,7 +546,10 @@ function loadOrders() {
   fetchData(API + '?action=getOrders&store=' + encodeURIComponent(store), function(res) {
     if (res.result === 'success') {
       orders = res.orders;
-      if (currentRole === '본사') { renderHqOrders(); renderHqEditOrders(); }
+      if (currentRole === '본사') {
+    renderHqOrders();
+    renderHqEditOrders();
+  }
       else renderStoreHistory();
     } else {
       listEl.innerHTML = '<div class="empty">불러오기 실패</div>';
@@ -1022,6 +1025,7 @@ function confirmDelivery(orderId, store) {
     if (res.result === 'success') {
       alert('납품이 확정되었습니다! 매출 데이터에 저장되었어요.');
       loadOrders();
+      setTimeout(function() { renderHqEditOrders(); }, 800);
     } else {
       alert('오류: ' + res.message);
     }
