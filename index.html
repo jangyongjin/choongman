@@ -381,6 +381,9 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <button class="tab active" onclick="showHqTab('dashboard',this)">
       <i class="ti ti-layout-dashboard"></i> 발주 현황
     </button>
+    <button class="tab" onclick="showHqTab('edit',this)">
+      <i class="ti ti-edit"></i> 전표 수정
+    </button>
     <button class="tab" onclick="showHqTab('slip',this)">
       <i class="ti ti-file-invoice"></i> 납품 전표
     </button>
@@ -409,6 +412,11 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <button class="btn sm" onclick="loadOrders()"><i class="ti ti-refresh"></i> 새로고침</button>
     </div>
     <div id="hq-order-list"><div class="loading">불러오는 중...</div></div>
+  </div>
+
+  <!-- 전표 수정 -->
+  <div class="tab-content" id="hq-tab-edit">
+    <div id="hq-edit-list"><div class="loading">발주 현황 탭에서 먼저 발주를 불러와 주세요</div></div>
   </div>
 
   <!-- 반품 관리 -->
@@ -851,6 +859,100 @@ function generateSlip() {
     allSlipsHtml;
 }
 
+function renderHqEditOrders() {
+  var el = document.getElementById('hq-edit-list');
+  if (!el) return;
+  var active = orders.filter(function(o) { return o.status !== '취소' && o.status !== '납품확정'; });
+  if (!active.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-check"></i> 수정할 발주가 없습니다</div>';
+    return;
+  }
+  el.innerHTML = active.map(function(o) {
+    var itemRows = o.items.map(function(item) {
+      var isExcluded = item.status === '제외';
+      return '<tr style="' + (isExcluded ? 'opacity:0.4;' : '') + '">' +
+        '<td style="font-size:11px;color:var(--text2)">' + item.code + '</td>' +
+        '<td>' + item.nameKo + '<div style="font-size:10px;color:var(--text2)">' + (item.nameVi||'') + '</div></td>' +
+        '<td style="text-align:right">' + item.price.toLocaleString() + '</td>' +
+        '<td style="text-align:center">' +
+          (isExcluded ? '<span style="color:var(--red);font-size:11px">제외됨</span>' :
+          '<div style="display:flex;align-items:center;justify-content:center;gap:4px">' +
+          '<button onclick="editQty('' + o.orderId + '','' + o.store + '','' + item.code + '',-1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">-</button>' +
+          '<input type="number" id="qty-' + o.orderId + '-' + item.code + '" value="' + (item.confirmQty||item.qty) + '" min="0" style="width:50px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:2px">' +
+          '<button onclick="editQty('' + o.orderId + '','' + o.store + '','' + item.code + '',1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">+</button>' +
+          '</div>') +
+        '</td>' +
+        '<td style="text-align:center">' +
+          (isExcluded ? '' :
+          '<button onclick="excludeItem('' + o.orderId + '','' + o.store + '','' + item.code + '')" style="font-size:11px;padding:3px 8px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:4px;cursor:pointer">제외</button>') +
+        '</td></tr>';
+    }).join('');
+    return '<div class="card" style="margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div><strong style="font-size:15px;color:var(--red)">' + o.store + '</strong>' +
+        '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + o.orderId + '</div></div>' +
+        '<button onclick="confirmDelivery('' + o.orderId + '','' + o.store + '')" style="padding:8px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✓ 납품 확정</button>' +
+      '</div>' +
+      '<div style="overflow-x:auto"><table class="slip-table">' +
+        '<thead><tr><th>코드</th><th>품목명</th><th style="text-align:right">단가</th><th style="text-align:center">확정수량</th><th style="text-align:center">관리</th></tr></thead>' +
+        '<tbody>' + itemRows + '</tbody>' +
+      '</table></div>' +
+      (o.message ? '<div class="msg-box" style="margin-top:8px">' + o.message + '</div>' : '') +
+      '<div style="margin-top:10px;text-align:right">' +
+        '<button onclick="showAddItemModal('' + o.orderId + '','' + o.store + '')" style="padding:7px 14px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">+ 품목 추가</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function editQty(orderId, store, code, delta) {
+  var input = document.getElementById('qty-' + orderId + '-' + code);
+  var newQty = Math.max(0, (parseInt(input.value)||0) + delta);
+  input.value = newQty;
+  postData({action:'updateOrderItem', orderId:orderId, store:store, itemCode:code, qty:newQty, memo:'수량이 ' + newQty + '개로 수정되었습니다.'}, function(res) {
+    if (res.result === 'success') loadOrders();
+  });
+}
+
+function excludeItem(orderId, store, code) {
+  if (!confirm(code + ' 품목을 전표에서 제외하시겠습니까?')) return;
+  postData({action:'updateOrderItem', orderId:orderId, store:store, itemCode:code, exclude:true, memo:code + ' 품목이 재고 부족으로 제외되었습니다.'}, function(res) {
+    if (res.result === 'success') loadOrders();
+  });
+}
+
+function confirmDelivery(orderId, store) {
+  if (!confirm(store + ' 매장의 납품을 확정하시겠습니까?\n확정 후 매출 데이터로 저장됩니다.')) return;
+  postData({action:'confirmDelivery', orderId:orderId, store:store}, function(res) {
+    if (res.result === 'success') {
+      alert('납품이 확정되었습니다!');
+      loadOrders();
+      setTimeout(renderHqEditOrders, 800);
+    } else {
+      alert('오류: ' + res.message);
+    }
+  });
+}
+
+function cancelConfirm(orderIds, store) {
+  if (!confirm(store + ' 매장의 납품 확정을 취소하시겠습니까?\n매출 데이터에서도 삭제됩니다.')) return;
+  var ids = orderIds.split(',');
+  var done = 0;
+  var total = ids.length;
+  ids.forEach(function(orderId) {
+    postData({action:'cancelConfirm', orderId:orderId.trim(), store:store}, function(res) {
+      done++;
+      if (done === total) {
+        alert('납품 확정이 취소되었습니다!');
+        var slipEl = document.getElementById('slip-' + store.replace(/\s/g,'_'));
+        if (slipEl) slipEl.parentNode.removeChild(slipEl);
+        var remaining = document.querySelectorAll('#hq-slip-output [id^="slip-"]');
+        if (!remaining || remaining.length === 0) document.getElementById('hq-slip-output').innerHTML = '';
+        loadOrders();
+      }
+    });
+  });
+}
+
 function showScreen(s) {
   document.querySelectorAll('.screen').forEach(function(el) { el.classList.remove('active'); });
   document.getElementById('screen-'+s).classList.add('active');
@@ -863,6 +965,7 @@ function showStoreTab(t, btn) {
   btn.classList.add('active');
   document.getElementById('store-tab-'+t).classList.add('active');
   if (t==='history') loadOrders();
+  if (t==='edit') { loadOrders(); setTimeout(renderHqEditOrders, 500); }
   if (t==='return') loadReturns();
 }
 
