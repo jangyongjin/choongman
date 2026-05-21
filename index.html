@@ -842,7 +842,7 @@ function generateSlip() {
       '<div>Người giao: _______________</div><div>Người nhận: _______________</div>' +
       '</div>' +
       '<div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center">생성: ' + new Date().toLocaleString('ko-KR') + '</div>' +
-      '<div class="no-print" style="display:none;margin-top:10px;justify-content:space-between;align-items:center">' +
+      '<div class="no-print" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">' +
       '<button onclick="cancelConfirm(\'' + orderIds + '\',\'' + store + '\')" style="padding:7px 14px;background:#fff;border:1.5px solid #A32D2D;color:#A32D2D;border-radius:8px;cursor:pointer;font-size:12px">✕ 확정 취소</button>' +
       '<button onclick="printSlip(\'slip-' + store.replace(/\s/g,'_') + '\')" style="padding:7px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px"><i class="ti ti-printer"></i> ' + store + ' 인쇄</button>' +
       '</div>' +
@@ -854,7 +854,7 @@ function generateSlip() {
     '<span style="flex:1">📋 <strong>' + storeList.length + '개 매장</strong> 전표 생성됨</span>' +
     '<button class="btn primary sm" onclick="askDelivDateAndPrint()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
     '<button class="btn sm" onclick="togglePrintBtns()" style="border-color:var(--red);color:var(--red)"><i class="ti ti-printer"></i> 매장별 인쇄</button>' +
-    '<button class="btn sm" onclick="toggleCancelBtns()" style="border-color:#A32D2D;color:#A32D2D"><i class="ti ti-arrow-back-up"></i> 확정 취소</button>' +
+
     '</div>' +
     allSlipsHtml;
 }
@@ -944,6 +944,7 @@ function cancelConfirm(orderIds, store) {
   if (!confirm(store + ' 매장의 납품 확정을 취소하시겠습니까?\n매출 데이터에서도 삭제됩니다.')) return;
   var ids = orderIds.split(',');
   var done = 0;
+  var total = ids.length;
   ids.forEach(function(orderId) {
     postData({
       action: 'cancelConfirm',
@@ -951,10 +952,19 @@ function cancelConfirm(orderIds, store) {
       store: store
     }, function(res) {
       done++;
-      if (done === ids.length) {
-        alert('납품 확정이 취소되었습니다!');
+      if (done === total) {
+        alert('납품 확정이 취소되었습니다!\n전표 수정 탭에서 다시 확인해주세요.');
         loadOrders();
-        document.getElementById('hq-slip-output').innerHTML = '';
+        setTimeout(function() {
+          // 해당 매장 전표 카드 제거
+          var slipEl = document.getElementById('slip-' + store.replace(/\s/g,'_'));
+          if (slipEl) slipEl.remove();
+          // 남은 전표가 없으면 전체 출력 영역 비우기
+          var remaining = document.querySelectorAll('#hq-slip-output .card[id^="slip-"]');
+          if (!remaining.length) {
+            document.getElementById('hq-slip-output').innerHTML = '';
+          }
+        }, 500);
       }
     });
   });
