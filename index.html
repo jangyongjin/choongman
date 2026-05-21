@@ -403,7 +403,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <div class="card-title"><i class="ti ti-file-invoice"></i> 납품 전표 생성</div>
       <div class="form-row">
         <div class="form-group" style="margin:0">
-          <label>발주일</label>
+          <label>납품일</label>
           <input type="date" id="hq-slip-date">
         </div>
         <div class="form-group" style="margin:0">
@@ -436,9 +436,10 @@ var allItems = [], selectedItems = {}, orders = [], currentCat = 'ALL';
 
 function init() {
   var d = new Date();
-  var today = d.toISOString().split('T')[0];
-  document.getElementById('s-delivery-date').value = today;
-  document.getElementById('hq-slip-date').value = today;
+  var tom = new Date(d); tom.setDate(d.getDate()+1);
+  var ts = tom.toISOString().split('T')[0];
+  document.getElementById('s-delivery-date').value = ts;
+  document.getElementById('hq-slip-date').value = ts;
   var dn = 'DN-' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-001';
   document.getElementById('hq-slip-no').value = dn;
 }
@@ -736,38 +737,28 @@ function generateSlip() {
   var slipNo = document.getElementById('hq-slip-no').value;
   var useVat = document.getElementById('vat-check').checked;
   var vatRate = parseFloat(document.getElementById('vat-rate').value) || 10;
-
   function matchOrderDate(o) {
     if (!orderDate) return true;
     var t = o.time || '';
     var dt = new Date(t);
     if (!isNaN(dt.getTime())) {
-      var y = dt.getFullYear();
-      var m = dt.getMonth()+1;
-      var day = dt.getDate();
-      var dStr = y + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
-      return dStr === orderDate;
+      var y = dt.getFullYear(); var m = dt.getMonth()+1; var day = dt.getDate();
+      return (y + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day)) === orderDate;
     }
     return t.indexOf(orderDate) >= 0;
   }
-
-  var activeOrders = orders.filter(function(o) {
-    return o.status !== '취소' && matchOrderDate(o);
-  });
+  var activeOrders = orders.filter(function(o) { return o.status !== '취소' && matchOrderDate(o); });
   if (!activeOrders.length) {
     document.getElementById('hq-slip-output').innerHTML = '<div class="card"><div class="empty">발주 내역이 없습니다</div></div>';
     return;
   }
-
   var storeList = [];
   activeOrders.forEach(function(o) { if (storeList.indexOf(o.store) < 0) storeList.push(o.store); });
-
   var allSlipsHtml = storeList.map(function(store, idx) {
     var storeOrders = activeOrders.filter(function(o) { return o.store === store; });
     var storeNo = slipNo + '-' + (idx+1);
     var memo = storeOrders.map(function(o) { return o.message; }).filter(Boolean).join(' / ');
     var orderIds = storeOrders.map(function(o) { return o.orderId; }).join(',');
-
     var agg = {};
     storeOrders.forEach(function(o) {
       o.items.forEach(function(i) {
@@ -782,68 +773,50 @@ function generateSlip() {
     var totalAmt = rows.reduce(function(s,r) { return s + r.price * r.qty; }, 0);
     var vatAmt = useVat ? Math.round(totalAmt * vatRate / 100) : 0;
     var finalAmt = totalAmt + vatAmt;
-
     var rowsHtml = rows.map(function(r) {
       var rowTotal = r.price * r.qty;
-      return '<tr>' +
-        '<td style="color:var(--text2);font-size:10px">' + r.code + '</td>' +
+      return '<tr><td style="color:var(--text2);font-size:10px">' + r.code + '</td>' +
         '<td><div style="font-weight:500">' + r.nameKo + '</div><div style="font-size:10px;color:var(--text2)">' + r.nameVi + '</div></td>' +
         '<td style="text-align:right">' + r.price.toLocaleString() + '</td>' +
         '<td style="text-align:right;font-weight:600">' + r.qty + '</td>' +
         '<td style="text-align:right">' + rowTotal.toLocaleString() + '</td>' +
-        (useVat ? '<td style="text-align:right">' + Math.round(rowTotal * vatRate/100).toLocaleString() + '</td>' : '') +
-        '<td style="text-align:right;font-weight:600">' + (rowTotal + (useVat ? Math.round(rowTotal * vatRate/100) : 0)).toLocaleString() + '</td>' +
-        '</tr>';
+        (useVat ? '<td style="text-align:right">' + Math.round(rowTotal*vatRate/100).toLocaleString() + '</td>' : '') +
+        '<td style="text-align:right;font-weight:600">' + (rowTotal+(useVat?Math.round(rowTotal*vatRate/100):0)).toLocaleString() + '</td></tr>';
     }).join('');
-
     return '<div class="card" id="slip-' + store.replace(/\s/g,'_') + '" style="margin-bottom:20px;page-break-after:always">' +
       '<div style="text-align:center;padding-bottom:14px;margin-bottom:14px;border-bottom:1.5px solid var(--border)">' +
       '<div style="color:var(--red);font-size:13px;font-weight:700;letter-spacing:0.08em;margin-bottom:4px">CHOONG MAN</div>' +
-      '<div style="font-size:20px;font-weight:700">납품 전표 · Phiếu Giao Hàng</div>' +
-      '</div>' +
+      '<div style="font-size:20px;font-weight:700">납품 전표 · Phiếu Giao Hàng</div></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:12px">' +
       '<div><span style="color:var(--text2)">Cửa hàng: </span><strong style="font-size:14px;color:var(--red)">' + store + '</strong></div>' +
       '<div><span style="color:var(--text2)">Số phiếu: </span><strong>' + storeNo + '</strong></div>' +
       '<div><span style="color:var(--text2)">Ngày giao: </span><strong class="slip-deliv-date">-</strong></div>' +
-      '<div><span style="color:var(--text2)">Thuế VAT: </span><strong>' + (useVat ? vatRate + '%' : 'Không áp dụng') + '</strong></div>' +
-      '</div>' +
+      '<div><span style="color:var(--text2)">Thuế VAT: </span><strong>' + (useVat ? vatRate+'%' : 'Không áp dụng') + '</strong></div></div>' +
       (memo ? '<div style="background:var(--red-light);border-left:3px solid var(--red);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;color:var(--red-dark)"><strong>메모:</strong> ' + memo + '</div>' : '') +
-      '<div style="overflow-x:auto">' +
-      '<table class="slip-table">' +
-      '<thead><tr>' +
-      '<th>Mã SP</th><th>Tên sản phẩm</th>' +
-      '<th style="text-align:right">Đơn giá(đ)</th>' +
-      '<th style="text-align:right">Số lượng</th>' +
-      '<th style="text-align:right">Thành tiền(đ)</th>' +
-      (useVat ? '<th style="text-align:right">Thuế(đ)</th>' : '') +
-      '<th style="text-align:right">Tổng tiền(đ)</th>' +
-      '</tr></thead>' +
-      '<tbody>' + rowsHtml +
-      '<tr class="slip-total">' +
-      '<td colspan="4">합계 · Tổng cộng</td>' +
+      '<div style="overflow-x:auto"><table class="slip-table"><thead><tr>' +
+      '<th>Mã SP</th><th>Tên sản phẩm</th><th style="text-align:right">Đơn giá(đ)</th><th style="text-align:right">Số lượng</th>' +
+      '<th style="text-align:right">Thành tiền(đ)</th>' + (useVat?'<th style="text-align:right">Thuế(đ)</th>':'') +
+      '<th style="text-align:right">Tổng tiền(đ)</th></tr></thead><tbody>' + rowsHtml +
+      '<tr class="slip-total"><td colspan="4">합계 · Tổng cộng</td>' +
       '<td style="text-align:right">' + totalAmt.toLocaleString() + '</td>' +
-      (useVat ? '<td style="text-align:right">' + vatAmt.toLocaleString() + '</td>' : '') +
+      (useVat?'<td style="text-align:right">'+vatAmt.toLocaleString()+'</td>':'') +
       '<td style="text-align:right;color:var(--red)">' + finalAmt.toLocaleString() + 'đ</td>' +
       '</tr></tbody></table></div>' +
       '<div style="height:1px;background:var(--border);margin:14px 0"></div>' +
       '<div style="font-size:12px;color:var(--text2);display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-      '<div>Người giao: _______________</div><div>Người nhận: _______________</div>' +
-      '</div>' +
+      '<div>Người giao: _______________</div><div>Người nhận: _______________</div></div>' +
       '<div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center">생성: ' + new Date().toLocaleString('ko-KR') + '</div>' +
       '<div class="no-print" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">' +
       '<button onclick="cancelConfirm(\'' + orderIds + '\',\'' + store + '\')" style="padding:7px 14px;background:#fff;border:1.5px solid #A32D2D;color:#A32D2D;border-radius:8px;cursor:pointer;font-size:12px">✕ 확정 취소</button>' +
-      '<button onclick="printSlip(\'slip-' + store.replace(/\s/g,'_') + '\')" style="padding:7px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px"><i class="ti ti-printer"></i> ' + store + ' 인쇄</button>' +
-      '</div>' +
-      '</div>';
+      '<button onclick="printSlip(\'slip-' + store.replace(/\s/g,'_') + '\')" style="padding:7px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px"><i class=\"ti ti-printer\"></i> ' + store + ' 인쇄</button>' +
+      '</div></div>';
   }).join('');
-
   document.getElementById('hq-slip-output').innerHTML =
     '<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
     '<span style="flex:1">📋 <strong>' + storeList.length + '개 매장</strong> 전표 생성됨</span>' +
     '<button class="btn primary sm" onclick="askDelivDateAndPrint()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
     '<button class="btn sm" onclick="togglePrintBtns()" style="border-color:var(--red);color:var(--red)"><i class="ti ti-printer"></i> 매장별 인쇄</button>' +
-    '</div>' +
-    allSlipsHtml;
+    '</div>' + allSlipsHtml;
 }
 
 function showScreen(s) {
@@ -893,18 +866,14 @@ function addQuickMsg(text) {
 init();
 
 function askDelivDateAndPrint() {
-  var delivDate = prompt('납품일을 입력하세요 (예: 2026-05-22):',
-    (function() { var t = new Date(); t.setDate(t.getDate()+1); return t.toISOString().split('T')[0]; })()
-  );
+  var delivDate = prompt('납품일을 입력하세요:', (function() { var t = new Date(); t.setDate(t.getDate()+1); return t.toISOString().split('T')[0]; })());
   if (!delivDate) return;
   document.querySelectorAll('.slip-deliv-date').forEach(function(el) { el.textContent = delivDate; });
   window.print();
 }
 
 function printSlip(slipId) {
-  var delivDate = prompt('납품일을 입력하세요 (예: 2026-05-22):',
-    (function() { var t = new Date(); t.setDate(t.getDate()+1); return t.toISOString().split('T')[0]; })()
-  );
+  var delivDate = prompt('납품일을 입력하세요:', (function() { var t = new Date(); t.setDate(t.getDate()+1); return t.toISOString().split('T')[0]; })());
   if (!delivDate) return;
   document.querySelectorAll('.slip-deliv-date').forEach(function(el) { el.textContent = delivDate; });
   var el = document.getElementById(slipId);
@@ -914,7 +883,6 @@ function printSlip(slipId) {
   printWin.document.write(el.innerHTML);
   printWin.document.write('</body></html>');
   printWin.document.close();
-  printWin.focus();
   setTimeout(function() { printWin.print(); printWin.close(); }, 500);
 }
 
@@ -924,12 +892,10 @@ function togglePrintBtns() {
   btns.forEach(function(b) { b.style.display = showing ? 'none' : 'flex'; });
 }
 
-// ── 반품 기능 ──────────────────────────────────────────────
 var returnTargetOrder = null, returnTargetStore = null;
 
 function showReturnModal(orderId, store) {
-  returnTargetOrder = orderId;
-  returnTargetStore = store;
+  returnTargetOrder = orderId; returnTargetStore = store;
   var order = orders.find(function(o) { return o.orderId === orderId; });
   if (!order) return;
   var itemsHtml = order.items.filter(function(i) { return i.status === '납품확정'; }).map(function(item) {
@@ -953,26 +919,19 @@ function submitReturn() {
   var order = orders.find(function(o) { return o.orderId === returnTargetOrder; });
   if (!order) return;
   var items = order.items.filter(function(i) { return i.status === '납품확정'; }).map(function(item) {
-    var qty = parseInt(document.getElementById('ret-' + item.code) ? document.getElementById('ret-' + item.code).value : 0) || 0;
-    return {code: item.code, nameKo: item.nameKo, nameVi: item.nameVi, price: item.price, returnQty: qty};
+    var el = document.getElementById('ret-' + item.code);
+    return {code:item.code, nameKo:item.nameKo, nameVi:item.nameVi, price:item.price, returnQty:el ? (parseInt(el.value)||0) : 0};
   }).filter(function(i) { return i.returnQty > 0; });
   if (!items.length) { alert('반품 수량을 입력해주세요!'); return; }
-  var memo = document.getElementById('return-memo').value.trim();
-  postData({action:'submitReturn', orderId:returnTargetOrder, store:returnTargetStore, items:items, memo:memo}, function(res) {
-    if (res.result === 'success') {
-      alert('반품 요청이 접수되었습니다!');
-      closeReturnModal();
-      loadReturns();
-    } else {
-      alert('오류: ' + res.message);
-    }
+  postData({action:'submitReturn', orderId:returnTargetOrder, store:returnTargetStore, items:items, memo:document.getElementById('return-memo').value.trim()}, function(res) {
+    if (res.result === 'success') { alert('반품 요청이 접수되었습니다!'); closeReturnModal(); loadReturns(); }
+    else alert('오류: ' + res.message);
   });
 }
 
 function loadReturns() {
   var store = currentRole === '본사' ? '본사' : currentUser;
-  var listElId = currentRole === '본사' ? 'hq-return-list' : 's-return-list';
-  var listEl = document.getElementById(listElId);
+  var listEl = document.getElementById(currentRole === '본사' ? 'hq-return-list' : 's-return-list');
   if (!listEl) return;
   listEl.innerHTML = '<div class="loading">불러오는 중...</div>';
   fetchData(API + '?action=getReturns&store=' + encodeURIComponent(store), function(res) {
@@ -982,10 +941,7 @@ function loadReturns() {
 }
 
 function renderReturns(returns, el) {
-  if (!returns || !returns.length) {
-    el.innerHTML = '<div class="empty"><i class="ti ti-arrow-back-up"></i> 반품 내역이 없습니다</div>';
-    return;
-  }
+  if (!returns || !returns.length) { el.innerHTML = '<div class="empty"><i class="ti ti-arrow-back-up"></i> 반품 내역이 없습니다</div>'; return; }
   el.innerHTML = returns.map(function(r) {
     var isHq = currentRole === '본사';
     var statusBadge = r.status === '승인' ? '<span class="badge badge-ok">승인</span>' :
@@ -993,20 +949,19 @@ function renderReturns(returns, el) {
                       '<span class="badge badge-new">검토중</span>';
     var actionBtns = isHq && r.status === '접수' ?
       '<div style="display:flex;gap:8px;margin-top:8px">' +
-      '<button onclick="approveReturn(\'' + r.returnId + '\')" style="padding:6px 14px;background:#3B6D11;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✓ 승인</button>' +
-      '<button onclick="rejectReturn(\'' + r.returnId + '\')" style="padding:6px 14px;background:#fff;border:1px solid #A32D2D;color:#A32D2D;border-radius:6px;cursor:pointer;font-size:12px">✕ 거절</button>' +
+      '<button onclick="approveReturn('' + r.returnId + '')" style="padding:6px 14px;background:#3B6D11;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✓ 승인</button>' +
+      '<button onclick="rejectReturn('' + r.returnId + '')" style="padding:6px 14px;background:#fff;border:1px solid #A32D2D;color:#A32D2D;border-radius:6px;cursor:pointer;font-size:12px">✕ 거절</button>' +
       '</div>' : '';
     return '<div class="order-card">' +
       '<div class="order-top"><div><div class="order-id">' + r.returnId + '</div><div class="order-time">' + r.time + '</div></div>' + statusBadge + '</div>' +
       '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">매장: ' + r.store + ' · 발주: ' + r.orderId + '</div>' +
       '<div class="tags">' + r.items.map(function(i) { return '<span class="tag">' + i.nameKo + ' ' + i.returnQty + '개</span>'; }).join('') + '</div>' +
-      (r.memo ? '<div class="msg-box">' + r.memo + '</div>' : '') +
-      actionBtns + '</div>';
+      (r.memo ? '<div class="msg-box">' + r.memo + '</div>' : '') + actionBtns + '</div>';
   }).join('');
 }
 
 function approveReturn(returnId) {
-  if (!confirm('반품을 승인하시겠습니까?\n매출 데이터에 반품이 반영됩니다.')) return;
+  if (!confirm('반품을 승인하시겠습니까?')) return;
   postData({action:'approveReturn', returnId:returnId}, function(res) {
     if (res.result === 'success') { alert('반품이 승인되었습니다!'); loadReturns(); }
     else alert('오류: ' + res.message);
@@ -1021,7 +976,6 @@ function rejectReturn(returnId) {
   });
 }
 
-// ── 품목 추가 모달 ──────────────────────────────────────────
 var addItemTargetOrder = null, addItemTargetStore = null, addItemSelected = null;
 
 function showAddItemModal(orderId, store) {
@@ -1031,10 +985,7 @@ function showAddItemModal(orderId, store) {
   document.getElementById('add-item-search').value = '';
   document.getElementById('add-item-modal').style.display = 'block';
   if (!allItems || allItems.length === 0) {
-    document.getElementById('add-item-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)">품목 불러오는 중...</div>';
-    fetchData(API + '?action=getItems', function(res) {
-      if (res.result === 'success') { allItems = res.items; filterAddItems(); }
-    });
+    fetchData(API + '?action=getItems', function(res) { if (res.result === 'success') { allItems = res.items; filterAddItems(); } });
   } else { filterAddItems(); }
 }
 
@@ -1045,12 +996,10 @@ function closeAddItemModal() {
 
 function filterAddItems() {
   var q = document.getElementById('add-item-search').value.toLowerCase();
-  var filtered = allItems.filter(function(i) {
-    return !q || i.nameKo.toLowerCase().indexOf(q) >= 0 || i.nameVi.toLowerCase().indexOf(q) >= 0 || i.code.toLowerCase().indexOf(q) >= 0;
-  });
+  var filtered = allItems.filter(function(i) { return !q || i.nameKo.toLowerCase().indexOf(q) >= 0 || i.nameVi.toLowerCase().indexOf(q) >= 0 || i.code.toLowerCase().indexOf(q) >= 0; });
   document.getElementById('add-item-list').innerHTML = filtered.map(function(item) {
     var isSel = addItemSelected && addItemSelected.code === item.code;
-    return '<div onclick="selectAddItem(\'' + item.code + '\')" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:' + (isSel?'var(--red-light)':'var(--bg2)') + ';border:1.5px solid ' + (isSel?'var(--red)':'transparent') + '">' +
+    return '<div onclick="selectAddItem('' + item.code + '')" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:' + (isSel?'var(--red-light)':'var(--bg2)') + ';border:1.5px solid ' + (isSel?'var(--red)':'transparent') + '">' +
       '<div style="font-weight:600;font-size:13px">' + item.nameKo + ' <span style="color:var(--text2);font-size:11px">(' + item.code + ')</span></div>' +
       '<div style="font-size:11px;color:var(--text2)">' + item.nameVi + ' · ' + item.price.toLocaleString() + 'đ</div></div>';
   }).join('');
@@ -1058,16 +1007,11 @@ function filterAddItems() {
 
 function selectAddItem(code) {
   addItemSelected = allItems.find(function(i) { return i.code === code; });
-  if (addItemSelected) {
-    document.getElementById('add-item-selected').innerHTML = '<strong style="color:var(--red)">' + addItemSelected.nameKo + '</strong> · ' + addItemSelected.price.toLocaleString() + 'đ 선택됨';
-  }
+  if (addItemSelected) document.getElementById('add-item-selected').innerHTML = '<strong style="color:var(--red)">' + addItemSelected.nameKo + '</strong> · ' + addItemSelected.price.toLocaleString() + 'đ 선택됨';
   filterAddItems();
 }
 
-function chgAddQty(d) {
-  var input = document.getElementById('add-item-qty');
-  input.value = Math.max(1, (parseInt(input.value)||1) + d);
-}
+function chgAddQty(d) { var input = document.getElementById('add-item-qty'); input.value = Math.max(1, (parseInt(input.value)||1) + d); }
 
 function addItemToOrder() {
   if (!addItemSelected) { alert('품목을 선택해주세요!'); return; }
@@ -1075,10 +1019,8 @@ function addItemToOrder() {
   postData({action:'addOrderItem', orderId:addItemTargetOrder, store:addItemTargetStore,
     item:{code:addItemSelected.code, nameKo:addItemSelected.nameKo, nameVi:addItemSelected.nameVi, qty:qty, price:addItemSelected.price}
   }, function(res) {
-    if (res.result === 'success') {
-      alert(addItemSelected.nameKo + ' ' + qty + '개가 추가되었습니다!');
-      closeAddItemModal(); loadOrders(); setTimeout(renderHqEditOrders, 800);
-    } else { alert('오류: ' + res.message); }
+    if (res.result === 'success') { alert(addItemSelected.nameKo + ' ' + qty + '개가 추가되었습니다!'); closeAddItemModal(); loadOrders(); setTimeout(renderHqEditOrders, 800); }
+    else alert('오류: ' + res.message);
   });
 }
 </script>
