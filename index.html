@@ -252,9 +252,6 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <button class="tab" onclick="showStoreTab('history',this)">
       <i class="ti ti-history"></i> 발주 내역
     </button>
-    <button class="tab" onclick="showStoreTab('return',this)">
-      <i class="ti ti-arrow-back-up"></i> 반품 내역
-    </button>
   </div>
 
   <!-- 발주 입력 -->
@@ -350,14 +347,6 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     </div>
     <div id="s-order-list"><div class="loading">불러오는 중...</div></div>
   </div>
-
-  <!-- 반품 내역 -->
-  <div class="tab-content" id="store-tab-return">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-      <button class="btn sm" onclick="loadReturns()"><i class="ti ti-refresh"></i> 새로고침</button>
-    </div>
-    <div id="s-return-list"><div class="loading">불러오는 중...</div></div>
-  </div>
 </div>
 
 <!-- 본사 관리자 화면 -->
@@ -381,14 +370,8 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <button class="tab active" onclick="showHqTab('dashboard',this)">
       <i class="ti ti-layout-dashboard"></i> 발주 현황
     </button>
-    <button class="tab" onclick="showHqTab('edit',this)">
-      <i class="ti ti-edit"></i> 전표 수정
-    </button>
     <button class="tab" onclick="showHqTab('slip',this)">
       <i class="ti ti-file-invoice"></i> 납품 전표
-    </button>
-    <button class="tab" onclick="showHqTab('return',this)">
-      <i class="ti ti-arrow-back-up"></i> 반품 관리
     </button>
   </div>
 
@@ -414,26 +397,13 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <div id="hq-order-list"><div class="loading">불러오는 중...</div></div>
   </div>
 
-  <!-- 전표 수정 -->
-  <div class="tab-content" id="hq-tab-edit">
-    <div id="hq-edit-list"><div class="loading">발주 현황 탭에서 먼저 발주를 불러와 주세요</div></div>
-  </div>
-
-  <!-- 반품 관리 -->
-  <div class="tab-content" id="hq-tab-return">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-      <button class="btn sm" onclick="loadReturns()"><i class="ti ti-refresh"></i> 새로고침</button>
-    </div>
-    <div id="hq-return-list"><div class="loading">불러오는 중...</div></div>
-  </div>
-
   <!-- 납품 전표 -->
   <div class="tab-content" id="hq-tab-slip">
     <div class="card">
       <div class="card-title"><i class="ti ti-file-invoice"></i> 납품 전표 생성</div>
       <div class="form-row">
         <div class="form-group" style="margin:0">
-          <label>납품일</label>
+          <label>발주일</label>
           <input type="date" id="hq-slip-date">
         </div>
         <div class="form-group" style="margin:0">
@@ -458,7 +428,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
 </div>
 
 <script>
-var API = 'https://script.google.com/macros/s/AKfycbyVe2I_kU1gForpXgorhBRFXEEEQqxLA7fhvwP3EyLs7qcH2x_SSKBnzjqa0u_9h1lX/exec';
+var API = 'https://script.google.com/macros/s/AKfycbycSIDtrHnbFSgc_RAzGz105EM914Ls3U1G7cLUn8ldGHi5ioJv__7em7n5r_8hHa8Z/exec';
 var CAT_NAMES = {M:'밀키트',C:'염지닭',S:'소스',B:'박스',U:'음료',P:'식품류',D:'주방용품',L:'홀용품'};
 
 var currentUser = null, currentRole = null;
@@ -466,10 +436,9 @@ var allItems = [], selectedItems = {}, orders = [], currentCat = 'ALL';
 
 function init() {
   var d = new Date();
-  var tom = new Date(d); tom.setDate(d.getDate()+1);
-  var ts = tom.toISOString().split('T')[0];
-  document.getElementById('s-delivery-date').value = ts;
-  document.getElementById('hq-slip-date').value = ts;
+  var today = d.toISOString().split('T')[0];
+  document.getElementById('s-delivery-date').value = today;
+  document.getElementById('hq-slip-date').value = today;
   var dn = 'DN-' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-001';
   document.getElementById('hq-slip-no').value = dn;
 }
@@ -568,7 +537,7 @@ function loadOrders() {
   fetchData(API + '?action=getOrders&store=' + encodeURIComponent(store), function(res) {
     if (res.result === 'success') {
       orders = res.orders;
-      if (currentRole === '본사') renderHqOrders();
+      if (currentRole === '본사') { renderHqOrders(); renderHqEditOrders(); }
       else renderStoreHistory();
     } else {
       listEl.innerHTML = '<div class="empty">불러오기 실패</div>';
@@ -700,12 +669,8 @@ function renderStoreHistory() {
   }
   el.innerHTML = myOrders.map(function(o) {
     var isCancelled = o.status === '취소';
-    var isConfirmed = o.status === '납품확정';
-    var badge = isCancelled ? '<span class="badge badge-cancel">취소</span>' :
-                isConfirmed ? '<span class="badge badge-ok">납품완료</span>' :
-                '<span class="badge badge-ok">접수완료</span>';
-    var cancelBtn = (!isCancelled && !isConfirmed) ? '<button class="btn sm danger" onclick="cancelOrder(\'' + o.orderId + '\')" style="margin-top:8px"><i class="ti ti-x"></i> 발주 취소</button>' : '';
-    var returnBtn = isConfirmed ? '<button class="btn sm" onclick="showReturnModal(\'' + o.orderId + '\',\'' + o.store + '\')" style="margin-top:8px;border-color:#BA7517;color:#BA7517"><i class="ti ti-arrow-back-up"></i> 반품 요청</button>' : '';
+    var badge = isCancelled ? '<span class="badge badge-cancel">취소</span>' : '<span class="badge badge-ok">접수완료</span>';
+    var cancelBtn = !isCancelled ? '<button class="btn sm danger" onclick="cancelOrder(\'' + o.orderId + '\')" style="margin-top:8px"><i class="ti ti-x"></i> 발주 취소</button>' : '';
     return '<div class="order-card' + (isCancelled?' cancelled':'') + '">' +
       '<div class="order-top">' +
         '<div><div class="order-id">' + o.orderId + '</div><div class="order-time">' + o.time + '</div></div>' +
@@ -714,7 +679,7 @@ function renderStoreHistory() {
       '<div style="font-size:12px;color:var(--text2)">납품: ' + o.delivDate + '</div>' +
       '<div class="tags">' + o.items.map(function(i) { return '<span class="tag">' + i.nameKo + ' ' + i.qty + '개</span>'; }).join('') + '</div>' +
       (o.message ? '<div class="msg-box">' + o.message + '</div>' : '') +
-      '<div style="display:flex;gap:8px">' + cancelBtn + returnBtn + '</div>' +
+      cancelBtn +
       '</div>';
   }).join('');
 }
@@ -767,32 +732,50 @@ function toggleVat() {
 }
 
 function generateSlip() {
-  var slipDate = document.getElementById('hq-slip-date').value;
+  var orderDate = document.getElementById('hq-slip-date').value;
   var slipNo = document.getElementById('hq-slip-no').value;
   var useVat = document.getElementById('vat-check').checked;
   var vatRate = parseFloat(document.getElementById('vat-rate').value) || 10;
-  var activeOrders = orders.filter(function(o) { return o.status !== '취소'; });
+
+  function matchOrderDate(o) {
+    if (!orderDate) return true;
+    var t = o.time || '';
+    var dt = new Date(t);
+    if (!isNaN(dt.getTime())) {
+      var y = dt.getFullYear();
+      var m = dt.getMonth()+1;
+      var day = dt.getDate();
+      var dStr = y + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
+      return dStr === orderDate;
+    }
+    return t.indexOf(orderDate) >= 0;
+  }
+
+  var activeOrders = orders.filter(function(o) {
+    return o.status !== '취소' && matchOrderDate(o);
+  });
   if (!activeOrders.length) {
     document.getElementById('hq-slip-output').innerHTML = '<div class="card"><div class="empty">발주 내역이 없습니다</div></div>';
     return;
   }
 
-  // 매장 목록 추출
   var storeList = [];
   activeOrders.forEach(function(o) { if (storeList.indexOf(o.store) < 0) storeList.push(o.store); });
 
-  // 매장별 전표 HTML 생성
   var allSlipsHtml = storeList.map(function(store, idx) {
     var storeOrders = activeOrders.filter(function(o) { return o.store === store; });
     var storeNo = slipNo + '-' + (idx+1);
     var memo = storeOrders.map(function(o) { return o.message; }).filter(Boolean).join(' / ');
+    var orderIds = storeOrders.map(function(o) { return o.orderId; }).join(',');
 
-    // 품목 집계
     var agg = {};
     storeOrders.forEach(function(o) {
       o.items.forEach(function(i) {
+        if (i.status === '제외') return;
+        var confirmQty = (Number(i.confirmQty) > 0) ? Number(i.confirmQty) : Number(i.qty);
+        if (confirmQty <= 0) return;
         if (!agg[i.code]) agg[i.code] = {code:i.code, nameKo:i.nameKo, nameVi:i.nameVi||'', price:Number(i.price)||0, qty:0};
-        agg[i.code].qty += Number(i.qty);
+        agg[i.code].qty += confirmQty;
       });
     });
     var rows = Object.values(agg).sort(function(a,b) { return a.code.localeCompare(b.code); });
@@ -802,7 +785,6 @@ function generateSlip() {
 
     var rowsHtml = rows.map(function(r) {
       var rowTotal = r.price * r.qty;
-      var vatRow = useVat ? Math.round(rowTotal * vatRate / 100) : 0;
       return '<tr>' +
         '<td style="color:var(--text2);font-size:10px">' + r.code + '</td>' +
         '<td><div style="font-weight:500">' + r.nameKo + '</div><div style="font-size:10px;color:var(--text2)">' + r.nameVi + '</div></td>' +
@@ -814,15 +796,15 @@ function generateSlip() {
         '</tr>';
     }).join('');
 
-    return '<div class="card" style="margin-bottom:20px;page-break-after:always">' +
+    return '<div class="card" id="slip-' + store.replace(/\s/g,'_') + '" style="margin-bottom:20px;page-break-after:always">' +
       '<div style="text-align:center;padding-bottom:14px;margin-bottom:14px;border-bottom:1.5px solid var(--border)">' +
       '<div style="color:var(--red);font-size:13px;font-weight:700;letter-spacing:0.08em;margin-bottom:4px">CHOONG MAN</div>' +
       '<div style="font-size:20px;font-weight:700">납품 전표 · Phiếu Giao Hàng</div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:12px">' +
       '<div><span style="color:var(--text2)">Cửa hàng: </span><strong style="font-size:14px;color:var(--red)">' + store + '</strong></div>' +
-      '<div><span style="color:var(--text2)">Ngày giao: </span><strong>' + slipDate + '</strong></div>' +
       '<div><span style="color:var(--text2)">Số phiếu: </span><strong>' + storeNo + '</strong></div>' +
+      '<div><span style="color:var(--text2)">Ngày giao: </span><strong class="slip-deliv-date">-</strong></div>' +
       '<div><span style="color:var(--text2)">Thuế VAT: </span><strong>' + (useVat ? vatRate + '%' : 'Không áp dụng') + '</strong></div>' +
       '</div>' +
       (memo ? '<div style="background:var(--red-light);border-left:3px solid var(--red);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;color:var(--red-dark)"><strong>메모:</strong> ' + memo + '</div>' : '') +
@@ -848,109 +830,20 @@ function generateSlip() {
       '<div>Người giao: _______________</div><div>Người nhận: _______________</div>' +
       '</div>' +
       '<div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center">생성: ' + new Date().toLocaleString('ko-KR') + '</div>' +
+      '<div class="no-print" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">' +
+      '<button onclick="cancelConfirm(\'' + orderIds + '\',\'' + store + '\')" style="padding:7px 14px;background:#fff;border:1.5px solid #A32D2D;color:#A32D2D;border-radius:8px;cursor:pointer;font-size:12px">✕ 확정 취소</button>' +
+      '<button onclick="printSlip(\'slip-' + store.replace(/\s/g,'_') + '\')" style="padding:7px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px"><i class="ti ti-printer"></i> ' + store + ' 인쇄</button>' +
+      '</div>' +
       '</div>';
   }).join('');
 
   document.getElementById('hq-slip-output').innerHTML =
-    '<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px;display:flex;align-items:center;justify-content:space-between">' +
-    '<span>📋 <strong>' + storeList.length + '개 매장</strong> 전표 생성됨</span>' +
-    '<button class="btn primary sm" onclick="window.print()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
+    '<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+    '<span style="flex:1">📋 <strong>' + storeList.length + '개 매장</strong> 전표 생성됨</span>' +
+    '<button class="btn primary sm" onclick="askDelivDateAndPrint()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
+    '<button class="btn sm" onclick="togglePrintBtns()" style="border-color:var(--red);color:var(--red)"><i class="ti ti-printer"></i> 매장별 인쇄</button>' +
     '</div>' +
     allSlipsHtml;
-}
-
-function renderHqEditOrders() {
-  var el = document.getElementById('hq-edit-list');
-  if (!el) return;
-  var active = orders.filter(function(o) { return o.status !== '취소' && o.status !== '납품확정'; });
-  if (!active.length) {
-    el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-check"></i> 수정할 발주가 없습니다</div>';
-    return;
-  }
-  el.innerHTML = active.map(function(o) {
-    var itemRows = o.items.map(function(item) {
-      var isExcluded = item.status === '제외';
-      return '<tr style="' + (isExcluded ? 'opacity:0.4;' : '') + '">' +
-        '<td style="font-size:11px;color:var(--text2)">' + item.code + '</td>' +
-        '<td>' + item.nameKo + '<div style="font-size:10px;color:var(--text2)">' + (item.nameVi||'') + '</div></td>' +
-        '<td style="text-align:right">' + item.price.toLocaleString() + '</td>' +
-        '<td style="text-align:center">' +
-          (isExcluded ? '<span style="color:var(--red);font-size:11px">제외됨</span>' :
-          '<div style="display:flex;align-items:center;justify-content:center;gap:4px">' +
-          '<button onclick="editQty('' + o.orderId + '','' + o.store + '','' + item.code + '',-1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">-</button>' +
-          '<input type="number" id="qty-' + o.orderId + '-' + item.code + '" value="' + (item.confirmQty||item.qty) + '" min="0" style="width:50px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:2px">' +
-          '<button onclick="editQty('' + o.orderId + '','' + o.store + '','' + item.code + '',1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">+</button>' +
-          '</div>') +
-        '</td>' +
-        '<td style="text-align:center">' +
-          (isExcluded ? '' :
-          '<button onclick="excludeItem('' + o.orderId + '','' + o.store + '','' + item.code + '')" style="font-size:11px;padding:3px 8px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:4px;cursor:pointer">제외</button>') +
-        '</td></tr>';
-    }).join('');
-    return '<div class="card" style="margin-bottom:12px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
-        '<div><strong style="font-size:15px;color:var(--red)">' + o.store + '</strong>' +
-        '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + o.orderId + '</div></div>' +
-        '<button onclick="confirmDelivery('' + o.orderId + '','' + o.store + '')" style="padding:8px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✓ 납품 확정</button>' +
-      '</div>' +
-      '<div style="overflow-x:auto"><table class="slip-table">' +
-        '<thead><tr><th>코드</th><th>품목명</th><th style="text-align:right">단가</th><th style="text-align:center">확정수량</th><th style="text-align:center">관리</th></tr></thead>' +
-        '<tbody>' + itemRows + '</tbody>' +
-      '</table></div>' +
-      (o.message ? '<div class="msg-box" style="margin-top:8px">' + o.message + '</div>' : '') +
-      '<div style="margin-top:10px;text-align:right">' +
-        '<button onclick="showAddItemModal('' + o.orderId + '','' + o.store + '')" style="padding:7px 14px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">+ 품목 추가</button>' +
-      '</div></div>';
-  }).join('');
-}
-
-function editQty(orderId, store, code, delta) {
-  var input = document.getElementById('qty-' + orderId + '-' + code);
-  var newQty = Math.max(0, (parseInt(input.value)||0) + delta);
-  input.value = newQty;
-  postData({action:'updateOrderItem', orderId:orderId, store:store, itemCode:code, qty:newQty, memo:'수량이 ' + newQty + '개로 수정되었습니다.'}, function(res) {
-    if (res.result === 'success') loadOrders();
-  });
-}
-
-function excludeItem(orderId, store, code) {
-  if (!confirm(code + ' 품목을 전표에서 제외하시겠습니까?')) return;
-  postData({action:'updateOrderItem', orderId:orderId, store:store, itemCode:code, exclude:true, memo:code + ' 품목이 재고 부족으로 제외되었습니다.'}, function(res) {
-    if (res.result === 'success') loadOrders();
-  });
-}
-
-function confirmDelivery(orderId, store) {
-  if (!confirm(store + ' 매장의 납품을 확정하시겠습니까?\n확정 후 매출 데이터로 저장됩니다.')) return;
-  postData({action:'confirmDelivery', orderId:orderId, store:store}, function(res) {
-    if (res.result === 'success') {
-      alert('납품이 확정되었습니다!');
-      loadOrders();
-      setTimeout(renderHqEditOrders, 800);
-    } else {
-      alert('오류: ' + res.message);
-    }
-  });
-}
-
-function cancelConfirm(orderIds, store) {
-  if (!confirm(store + ' 매장의 납품 확정을 취소하시겠습니까?\n매출 데이터에서도 삭제됩니다.')) return;
-  var ids = orderIds.split(',');
-  var done = 0;
-  var total = ids.length;
-  ids.forEach(function(orderId) {
-    postData({action:'cancelConfirm', orderId:orderId.trim(), store:store}, function(res) {
-      done++;
-      if (done === total) {
-        alert('납품 확정이 취소되었습니다!');
-        var slipEl = document.getElementById('slip-' + store.replace(/\s/g,'_'));
-        if (slipEl) slipEl.parentNode.removeChild(slipEl);
-        var remaining = document.querySelectorAll('#hq-slip-output [id^="slip-"]');
-        if (!remaining || remaining.length === 0) document.getElementById('hq-slip-output').innerHTML = '';
-        loadOrders();
-      }
-    });
-  });
 }
 
 function showScreen(s) {
@@ -965,8 +858,6 @@ function showStoreTab(t, btn) {
   btn.classList.add('active');
   document.getElementById('store-tab-'+t).classList.add('active');
   if (t==='history') loadOrders();
-  if (t==='edit') { loadOrders(); setTimeout(renderHqEditOrders, 500); }
-  if (t==='return') loadReturns();
 }
 
 function showHqTab(t, btn) {
@@ -975,6 +866,8 @@ function showHqTab(t, btn) {
   btn.classList.add('active');
   document.getElementById('hq-tab-'+t).classList.add('active');
   if (t==='dashboard') loadOrders();
+  if (t==='edit') { loadOrders(); setTimeout(renderHqEditOrders, 500); }
+  if (t==='return') loadReturns();
 }
 
 function logout() {
@@ -998,6 +891,235 @@ function addQuickMsg(text) {
 }
 
 init();
+
+function askDelivDateAndPrint() {
+  var delivDate = prompt('납품일을 입력하세요 (예: 2026-05-22):',
+    (function() { var t = new Date(); t.setDate(t.getDate()+1); return t.toISOString().split('T')[0]; })()
+  );
+  if (!delivDate) return;
+  document.querySelectorAll('.slip-deliv-date').forEach(function(el) { el.textContent = delivDate; });
+  window.print();
+}
+
+function printSlip(slipId) {
+  var delivDate = prompt('납품일을 입력하세요 (예: 2026-05-22):',
+    (function() { var t = new Date(); t.setDate(t.getDate()+1); return t.toISOString().split('T')[0]; })()
+  );
+  if (!delivDate) return;
+  document.querySelectorAll('.slip-deliv-date').forEach(function(el) { el.textContent = delivDate; });
+  var el = document.getElementById(slipId);
+  if (!el) return;
+  var printWin = window.open('', '_blank', 'width=800,height=600');
+  printWin.document.write('<html><head><title>납품전표</title><style>body{font-family:sans-serif;padding:20px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px} th{background:#2E4057;color:#fff} .slip-total td{font-weight:bold;background:#D9E1EC} .no-print{display:none!important}</style></head><body>');
+  printWin.document.write(el.innerHTML);
+  printWin.document.write('</body></html>');
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(function() { printWin.print(); printWin.close(); }, 500);
+}
+
+function togglePrintBtns() {
+  var btns = document.querySelectorAll('#hq-slip-output .no-print');
+  var showing = btns[0] && btns[0].style.display !== 'none';
+  btns.forEach(function(b) { b.style.display = showing ? 'none' : 'flex'; });
+}
+
+// ── 반품 기능 ──────────────────────────────────────────────
+var returnTargetOrder = null, returnTargetStore = null;
+
+function showReturnModal(orderId, store) {
+  returnTargetOrder = orderId;
+  returnTargetStore = store;
+  var order = orders.find(function(o) { return o.orderId === orderId; });
+  if (!order) return;
+  var itemsHtml = order.items.filter(function(i) { return i.status === '납품확정'; }).map(function(item) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:500">' + item.nameKo + '</div>' +
+      '<div style="font-size:11px;color:var(--text2)">' + item.nameVi + ' · 납품수량: ' + (item.confirmQty||item.qty) + '개</div></div>' +
+      '<input type="number" id="ret-' + item.code + '" value="0" min="0" max="' + (item.confirmQty||item.qty) + '" style="width:60px;text-align:center;border:1px solid var(--border);border-radius:6px;padding:6px">' +
+      '<span style="font-size:12px;color:var(--text2)">개</span></div>';
+  }).join('');
+  document.getElementById('return-items-list').innerHTML = itemsHtml || '<div class="empty">반품 가능한 품목이 없습니다</div>';
+  document.getElementById('return-memo').value = '';
+  document.getElementById('return-modal').style.display = 'block';
+}
+
+function closeReturnModal() {
+  document.getElementById('return-modal').style.display = 'none';
+  returnTargetOrder = null; returnTargetStore = null;
+}
+
+function submitReturn() {
+  var order = orders.find(function(o) { return o.orderId === returnTargetOrder; });
+  if (!order) return;
+  var items = order.items.filter(function(i) { return i.status === '납품확정'; }).map(function(item) {
+    var qty = parseInt(document.getElementById('ret-' + item.code) ? document.getElementById('ret-' + item.code).value : 0) || 0;
+    return {code: item.code, nameKo: item.nameKo, nameVi: item.nameVi, price: item.price, returnQty: qty};
+  }).filter(function(i) { return i.returnQty > 0; });
+  if (!items.length) { alert('반품 수량을 입력해주세요!'); return; }
+  var memo = document.getElementById('return-memo').value.trim();
+  postData({action:'submitReturn', orderId:returnTargetOrder, store:returnTargetStore, items:items, memo:memo}, function(res) {
+    if (res.result === 'success') {
+      alert('반품 요청이 접수되었습니다!');
+      closeReturnModal();
+      loadReturns();
+    } else {
+      alert('오류: ' + res.message);
+    }
+  });
+}
+
+function loadReturns() {
+  var store = currentRole === '본사' ? '본사' : currentUser;
+  var listElId = currentRole === '본사' ? 'hq-return-list' : 's-return-list';
+  var listEl = document.getElementById(listElId);
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="loading">불러오는 중...</div>';
+  fetchData(API + '?action=getReturns&store=' + encodeURIComponent(store), function(res) {
+    if (res.result === 'success') renderReturns(res.returns, listEl);
+    else listEl.innerHTML = '<div class="empty">불러오기 실패</div>';
+  });
+}
+
+function renderReturns(returns, el) {
+  if (!returns || !returns.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-arrow-back-up"></i> 반품 내역이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = returns.map(function(r) {
+    var isHq = currentRole === '본사';
+    var statusBadge = r.status === '승인' ? '<span class="badge badge-ok">승인</span>' :
+                      r.status === '거절' ? '<span class="badge badge-cancel">거절</span>' :
+                      '<span class="badge badge-new">검토중</span>';
+    var actionBtns = isHq && r.status === '접수' ?
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
+      '<button onclick="approveReturn(\'' + r.returnId + '\')" style="padding:6px 14px;background:#3B6D11;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✓ 승인</button>' +
+      '<button onclick="rejectReturn(\'' + r.returnId + '\')" style="padding:6px 14px;background:#fff;border:1px solid #A32D2D;color:#A32D2D;border-radius:6px;cursor:pointer;font-size:12px">✕ 거절</button>' +
+      '</div>' : '';
+    return '<div class="order-card">' +
+      '<div class="order-top"><div><div class="order-id">' + r.returnId + '</div><div class="order-time">' + r.time + '</div></div>' + statusBadge + '</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">매장: ' + r.store + ' · 발주: ' + r.orderId + '</div>' +
+      '<div class="tags">' + r.items.map(function(i) { return '<span class="tag">' + i.nameKo + ' ' + i.returnQty + '개</span>'; }).join('') + '</div>' +
+      (r.memo ? '<div class="msg-box">' + r.memo + '</div>' : '') +
+      actionBtns + '</div>';
+  }).join('');
+}
+
+function approveReturn(returnId) {
+  if (!confirm('반품을 승인하시겠습니까?\n매출 데이터에 반품이 반영됩니다.')) return;
+  postData({action:'approveReturn', returnId:returnId}, function(res) {
+    if (res.result === 'success') { alert('반품이 승인되었습니다!'); loadReturns(); }
+    else alert('오류: ' + res.message);
+  });
+}
+
+function rejectReturn(returnId) {
+  if (!confirm('반품을 거절하시겠습니까?')) return;
+  postData({action:'rejectReturn', returnId:returnId}, function(res) {
+    if (res.result === 'success') { alert('반품이 거절되었습니다.'); loadReturns(); }
+    else alert('오류: ' + res.message);
+  });
+}
+
+// ── 품목 추가 모달 ──────────────────────────────────────────
+var addItemTargetOrder = null, addItemTargetStore = null, addItemSelected = null;
+
+function showAddItemModal(orderId, store) {
+  addItemTargetOrder = orderId; addItemTargetStore = store; addItemSelected = null;
+  document.getElementById('add-item-selected').textContent = '선택된 품목 없음';
+  document.getElementById('add-item-qty').value = 1;
+  document.getElementById('add-item-search').value = '';
+  document.getElementById('add-item-modal').style.display = 'block';
+  if (!allItems || allItems.length === 0) {
+    document.getElementById('add-item-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)">품목 불러오는 중...</div>';
+    fetchData(API + '?action=getItems', function(res) {
+      if (res.result === 'success') { allItems = res.items; filterAddItems(); }
+    });
+  } else { filterAddItems(); }
+}
+
+function closeAddItemModal() {
+  document.getElementById('add-item-modal').style.display = 'none';
+  addItemTargetOrder = null; addItemTargetStore = null; addItemSelected = null;
+}
+
+function filterAddItems() {
+  var q = document.getElementById('add-item-search').value.toLowerCase();
+  var filtered = allItems.filter(function(i) {
+    return !q || i.nameKo.toLowerCase().indexOf(q) >= 0 || i.nameVi.toLowerCase().indexOf(q) >= 0 || i.code.toLowerCase().indexOf(q) >= 0;
+  });
+  document.getElementById('add-item-list').innerHTML = filtered.map(function(item) {
+    var isSel = addItemSelected && addItemSelected.code === item.code;
+    return '<div onclick="selectAddItem(\'' + item.code + '\')" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:' + (isSel?'var(--red-light)':'var(--bg2)') + ';border:1.5px solid ' + (isSel?'var(--red)':'transparent') + '">' +
+      '<div style="font-weight:600;font-size:13px">' + item.nameKo + ' <span style="color:var(--text2);font-size:11px">(' + item.code + ')</span></div>' +
+      '<div style="font-size:11px;color:var(--text2)">' + item.nameVi + ' · ' + item.price.toLocaleString() + 'đ</div></div>';
+  }).join('');
+}
+
+function selectAddItem(code) {
+  addItemSelected = allItems.find(function(i) { return i.code === code; });
+  if (addItemSelected) {
+    document.getElementById('add-item-selected').innerHTML = '<strong style="color:var(--red)">' + addItemSelected.nameKo + '</strong> · ' + addItemSelected.price.toLocaleString() + 'đ 선택됨';
+  }
+  filterAddItems();
+}
+
+function chgAddQty(d) {
+  var input = document.getElementById('add-item-qty');
+  input.value = Math.max(1, (parseInt(input.value)||1) + d);
+}
+
+function addItemToOrder() {
+  if (!addItemSelected) { alert('품목을 선택해주세요!'); return; }
+  var qty = parseInt(document.getElementById('add-item-qty').value) || 1;
+  postData({action:'addOrderItem', orderId:addItemTargetOrder, store:addItemTargetStore,
+    item:{code:addItemSelected.code, nameKo:addItemSelected.nameKo, nameVi:addItemSelected.nameVi, qty:qty, price:addItemSelected.price}
+  }, function(res) {
+    if (res.result === 'success') {
+      alert(addItemSelected.nameKo + ' ' + qty + '개가 추가되었습니다!');
+      closeAddItemModal(); loadOrders(); setTimeout(renderHqEditOrders, 800);
+    } else { alert('오류: ' + res.message); }
+  });
+}
 </script>
+
+<!-- 반품 요청 모달 -->
+<div id="return-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto">
+  <div style="background:#fff;margin:20px auto;max-width:500px;border-radius:16px;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <strong style="font-size:16px"><i class="ti ti-arrow-back-up"></i> 반품 요청</strong>
+      <button onclick="closeReturnModal()" style="background:none;border:none;font-size:20px;cursor:pointer">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px">반품할 수량을 입력해주세요</div>
+    <div id="return-items-list" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
+    <div class="form-group">
+      <label>반품 사유</label>
+      <textarea id="return-memo" placeholder="반품 사유를 입력해주세요" style="min-height:60px"></textarea>
+    </div>
+    <button onclick="submitReturn()" style="width:100%;padding:12px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">반품 요청 제출</button>
+  </div>
+</div>
+
+<!-- 품목 추가 모달 -->
+<div id="add-item-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto">
+  <div style="background:#fff;margin:20px auto;max-width:500px;border-radius:16px;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <strong style="font-size:16px">품목 추가</strong>
+      <button onclick="closeAddItemModal()" style="background:none;border:none;font-size:20px;cursor:pointer">×</button>
+    </div>
+    <input type="text" id="add-item-search" placeholder="품목명 검색..." oninput="filterAddItems()" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:12px">
+    <div id="add-item-list" style="max-height:300px;overflow-y:auto"></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div id="add-item-selected" style="font-size:13px;color:var(--text2);margin-bottom:8px">선택된 품목 없음</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <label style="font-size:13px">수량:</label>
+        <button onclick="chgAddQty(-1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">-</button>
+        <input type="number" id="add-item-qty" value="1" min="1" style="width:60px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:4px">
+        <button onclick="chgAddQty(1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">+</button>
+      </div>
+      <button onclick="addItemToOrder()" style="width:100%;padding:12px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">추가하기</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
