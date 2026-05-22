@@ -868,26 +868,26 @@ function renderHqEditOrders() {
         '<td style="text-align:center">' +
           (isExcluded ? '<span style="color:var(--red);font-size:11px">제외됨</span>' :
           '<div style="display:flex;align-items:center;justify-content:center;gap:4px">' +
-          '<button onclick="editQty('' + o.orderId + '','' + o.store + '','' + item.code + '',-1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">-</button>' +
+          '<button onclick="editQty(\'' + o.orderId + '\',\'' + o.store + '\',\'' + item.code + '\',-1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">-</button>' +
           '<input type="number" id="qty-' + o.orderId + '-' + item.code + '" value="' + (item.confirmQty||item.qty) + '" min="0" style="width:50px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:2px">' +
-          '<button onclick="editQty('' + o.orderId + '','' + o.store + '','' + item.code + '',1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">+</button>' +
+          '<button onclick="editQty(\'' + o.orderId + '\',\'' + o.store + '\',\'' + item.code + '\',1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);cursor:pointer">+</button>' +
           '</div>') + '</td>' +
         '<td style="text-align:center">' +
-          (isExcluded ? '' : '<button onclick="excludeItem('' + o.orderId + '','' + o.store + '','' + item.code + '')" style="font-size:11px;padding:3px 8px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:4px;cursor:pointer">제외</button>') +
+          (isExcluded ? '' : '<button onclick="excludeItem(\'' + o.orderId + '\',\'' + o.store + '\',\'' + item.code + '\')" style="font-size:11px;padding:3px 8px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:4px;cursor:pointer">제외</button>') +
         '</td></tr>';
     }).join('');
     return '<div class="card" style="margin-bottom:12px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<div><strong style="font-size:15px;color:var(--red)">' + o.store + '</strong>' +
         '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + o.orderId + '</div></div>' +
-        '<button onclick="confirmDelivery('' + o.orderId + '','' + o.store + '')" style="padding:8px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✓ 납품 확정</button>' +
+        '<button onclick="confirmDelivery(\'' + o.orderId + '\',\'' + o.store + '\')" style="padding:8px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✓ 납품 확정</button>' +
       '</div>' +
       '<div style="overflow-x:auto"><table class="slip-table">' +
         '<thead><tr><th>코드</th><th>품목명</th><th style="text-align:right">단가</th><th style="text-align:center">확정수량</th><th style="text-align:center">관리</th></tr></thead>' +
         '<tbody>' + itemRows + '</tbody></table></div>' +
       (o.message ? '<div class="msg-box" style="margin-top:8px">' + o.message + '</div>' : '') +
       '<div style="margin-top:10px;text-align:right">' +
-        '<button onclick="showAddItemModal('' + o.orderId + '','' + o.store + '')" style="padding:7px 14px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">+ 품목 추가</button>' +
+        '<button onclick="showAddItemModal(\'' + o.orderId + '\',\'' + o.store + '\')" style="padding:7px 14px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">+ 품목 추가</button>' +
       '</div></div>';
   }).join('');
 }
@@ -1061,8 +1061,8 @@ function renderReturns(returns, el) {
                       '<span class="badge badge-new">검토중</span>';
     var actionBtns = isHq && r.status === '접수' ?
       '<div style="display:flex;gap:8px;margin-top:8px">' +
-      '<button onclick="approveReturn('' + r.returnId + '')" style="padding:6px 14px;background:#3B6D11;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✓ 승인</button>' +
-      '<button onclick="rejectReturn('' + r.returnId + '')" style="padding:6px 14px;background:#fff;border:1px solid #A32D2D;color:#A32D2D;border-radius:6px;cursor:pointer;font-size:12px">✕ 거절</button>' +
+      '<button onclick="approveReturn(\'' + r.returnId + '\')" style="padding:6px 14px;background:#3B6D11;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✓ 승인</button>' +
+      '<button onclick="rejectReturn(\'' + r.returnId + '\')" style="padding:6px 14px;background:#fff;border:1px solid #A32D2D;color:#A32D2D;border-radius:6px;cursor:pointer;font-size:12px">✕ 거절</button>' +
       '</div>' : '';
     return '<div class="order-card">' +
       '<div class="order-top"><div><div class="order-id">' + r.returnId + '</div><div class="order-time">' + r.time + '</div></div>' + statusBadge + '</div>' +
@@ -1111,7 +1111,7 @@ function filterAddItems() {
   var filtered = allItems.filter(function(i) { return !q || i.nameKo.toLowerCase().indexOf(q) >= 0 || i.nameVi.toLowerCase().indexOf(q) >= 0 || i.code.toLowerCase().indexOf(q) >= 0; });
   document.getElementById('add-item-list').innerHTML = filtered.map(function(item) {
     var isSel = addItemSelected && addItemSelected.code === item.code;
-    return '<div onclick="selectAddItem('' + item.code + '')" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:' + (isSel?'var(--red-light)':'var(--bg2)') + ';border:1.5px solid ' + (isSel?'var(--red)':'transparent') + '">' +
+    return '<div onclick="selectAddItem(\'' + item.code + '\')" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:' + (isSel?'var(--red-light)':'var(--bg2)') + ';border:1.5px solid ' + (isSel?'var(--red)':'transparent') + '">' +
       '<div style="font-weight:600;font-size:13px">' + item.nameKo + ' <span style="color:var(--text2);font-size:11px">(' + item.code + ')</span></div>' +
       '<div style="font-size:11px;color:var(--text2)">' + item.nameVi + ' · ' + item.price.toLocaleString() + 'đ</div></div>';
   }).join('');
