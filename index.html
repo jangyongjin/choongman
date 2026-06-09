@@ -408,7 +408,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
 </div>
 
 <script>
-var API = 'https://script.google.com/macros/s/AKfycbzAec77P5LxxbusF0TukGzzlyvUL261cNobLNPQ5tkkt2H05PoWy4uXkAGJcn1Um4CJ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbyVe2I_kU1gForpXgorhBRFXEEEQqxLA7fhvwP3EyLs7qcH2x_SSKBnzjqa0u_9h1lX/exec';
 var currentUser = null, currentRole = null;
 var allItems = [], selectedItems = {}, orders = [], currentCat = 'ALL';
 var returnTargetOrder = null, returnTargetStore = null;
@@ -671,7 +671,8 @@ function renderHqOrders() {
   document.getElementById('hq-m-items').textContent = active.reduce(function(s,o){return s+o.items.length;},0);
   var el = document.getElementById('hq-order-list');
   if (!orders.length) { el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-x"></i>접수된 발주가 없습니다</div>'; return; }
-  el.innerHTML = orders.map(function(o) {
+  var sorted = orders.slice().sort(function(a,b){return new Date(b.time)-new Date(a.time);});
+  el.innerHTML = sorted.map(function(o) {
     var isCancelled = o.status==='취소';
     var isConfirmed = o.status==='납품확정';
     var badge = isCancelled ? '<span class="badge badge-cancel">취소</span>' :
@@ -767,20 +768,18 @@ function generateSlip() {
   var storeList = [];
   active.forEach(function(o){if(storeList.indexOf(o.store)<0)storeList.push(o.store);});
 
-  var html = storeList.map(function(store, idx) {
-    var storeOrders = active.filter(function(o){return o.store===store;});
+  var html = active.map(function(o, idx) {
+    var store = o.store;
     var storeNo = slipNo + '-' + (idx+1);
-    var orderIds = storeOrders.map(function(o){return o.orderId;}).join(',');
-    var memo = storeOrders.map(function(o){return o.message;}).filter(Boolean).join(' / ');
+    var orderIds = o.orderId;
+    var memo = o.message || '';
     var agg = {};
-    storeOrders.forEach(function(o) {
-      o.items.forEach(function(i) {
+    o.items.forEach(function(i) {
         if (i.status==='제외') return;
         var qty = Number(i.confirmQty)>0 ? Number(i.confirmQty) : Number(i.qty);
         if (qty<=0) return;
         if (!agg[i.code]) agg[i.code] = {code:i.code, nameKo:i.nameKo, nameVi:i.nameVi||'', price:Number(i.price)||0, qty:0};
         agg[i.code].qty += qty;
-      });
     });
     var rows = Object.values(agg).sort(function(a,b){return a.code.localeCompare(b.code);});
     var totalAmt = rows.reduce(function(s,r){return s+r.price*r.qty;},0);
@@ -827,7 +826,7 @@ function generateSlip() {
 
   document.getElementById('hq-slip-output').innerHTML =
     '<div style="margin-bottom:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
-    '<span style="flex:1">📋 <strong>'+storeList.length+'개 매장</strong> 전표 생성됨</span>' +
+    '<span style="flex:1">📋 <strong>'+active.length+'건</strong> 전표 생성됨</span>' +
     '<button class="btn primary sm" onclick="askDelivAndPrint()"><i class="ti ti-printer"></i> 전체 인쇄</button>' +
     '<button class="btn sm" onclick="togglePrintBtns()" style="border-color:var(--red);color:var(--red)"><i class="ti ti-printer"></i> 매장별 인쇄</button>' +
     '</div>' + html;
