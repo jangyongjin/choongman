@@ -671,7 +671,11 @@ function renderHqOrders() {
   document.getElementById('hq-m-items').textContent = active.reduce(function(s,o){return s+o.items.length;},0);
   var el = document.getElementById('hq-order-list');
   if (!orders.length) { el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-x"></i>접수된 발주가 없습니다</div>'; return; }
-  var sorted = orders.slice().sort(function(a,b){return new Date(b.time)-new Date(a.time);});
+  var sorted = orders.slice().sort(function(a,b){
+    var da = a.time ? new Date(a.time) : new Date(0);
+    var db = b.time ? new Date(b.time) : new Date(0);
+    return db - da;
+  });
   el.innerHTML = sorted.map(function(o) {
     var isCancelled = o.status==='취소';
     var isConfirmed = o.status==='납품확정';
