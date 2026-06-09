@@ -632,7 +632,7 @@ function loadOrders() {
 // ── 매장 발주 내역 ──
 function renderStoreHistory() {
   var el = document.getElementById('s-order-list');
-  var myOrders = orders.filter(function(o){return o.store===currentUser;});
+  var myOrders = orders.filter(function(o){return o.store===currentUser;}).sort(function(a,b){var da=a.time?new Date(a.time):new Date(0);var db=b.time?new Date(b.time):new Date(0);return db-da;});
   if (!myOrders.length) { el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-x"></i>발주 내역이 없습니다</div>'; return; }
   el.innerHTML = myOrders.map(function(o) {
     var isCancelled = o.status==='취소';
@@ -694,7 +694,7 @@ function renderHqOrders() {
 function renderHqEditOrders() {
   var el = document.getElementById('hq-edit-list');
   if (!el) return;
-  var active = orders.filter(function(o){return o.status!=='취소' && o.status!=='납품확정';});
+  var active = orders.filter(function(o){return o.status!=='취소' && o.status!=='납품확정';}).sort(function(a,b){var da=a.time?new Date(a.time):new Date(0);var db=b.time?new Date(b.time):new Date(0);return db-da;});
   if (!active.length) { el.innerHTML = '<div class="empty"><i class="ti ti-clipboard-check"></i>수정할 발주가 없습니다</div>'; return; }
   el.innerHTML = active.map(function(o) {
     var rows = o.items.map(function(item) {
@@ -930,7 +930,8 @@ function loadReturns() {
 
 function renderReturns(returns, el) {
   if (!returns||!returns.length) { el.innerHTML = '<div class="empty"><i class="ti ti-arrow-back-up"></i>반품 내역이 없습니다</div>'; return; }
-  el.innerHTML = returns.map(function(r) {
+  var sorted = returns.slice().sort(function(a,b){var da=a.time?new Date(a.time):new Date(0);var db=b.time?new Date(b.time):new Date(0);return db-da;});
+  el.innerHTML = sorted.map(function(r) {
     var isHq = currentRole==='본사';
     var badge = r.status==='승인' ? '<span class="badge badge-ok">승인</span>' :
                 r.status==='거절' ? '<span class="badge badge-cancel">거절</span>' :
