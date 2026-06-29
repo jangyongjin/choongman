@@ -799,7 +799,8 @@ function generateSlip() {
         (useVat?'<td style="text-align:right">'+Math.round(rt*vatRate/100).toLocaleString()+'</td>':'') +
         '<td style="text-align:right;font-weight:600">'+(rt+(useVat?Math.round(rt*vatRate/100):0)).toLocaleString()+'</td></tr>';
     }).join('');
-    return '<div class="card" id="slip-'+store.replace(/\s/g,'_')+'" style="margin-bottom:20px;page-break-after:always">' +
+    var slipId = 'slip-'+orderIds.replace(/[\s-]/g,'_');
+    return '<div class="card" id="'+slipId+'" style="margin-bottom:20px;page-break-after:always">' +
       '<div style="text-align:center;padding-bottom:14px;margin-bottom:14px;border-bottom:1.5px solid var(--border)">' +
       '<div style="color:var(--red);font-size:13px;font-weight:700;letter-spacing:0.08em;margin-bottom:4px">CHOONG MAN</div>' +
       '<div style="font-size:20px;font-weight:700">납품 전표 · Phiếu Giao Hàng</div></div>' +
@@ -824,7 +825,7 @@ function generateSlip() {
       '<div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center">생성: '+new Date().toLocaleString('ko-KR')+'</div>' +
       '<div class="no-print" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">' +
       '<button onclick="cancelConfirm(\''+orderIds+'\',\''+store+'\')" style="padding:7px 14px;background:#fff;border:1.5px solid #A32D2D;color:#A32D2D;border-radius:8px;cursor:pointer;font-size:12px">✕ 확정 취소</button>' +
-      '<button onclick="printSlip(\'slip-'+store.replace(/\s/g,'_')+'\')" style="padding:7px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px"><i class="ti ti-printer"></i> '+store+' 인쇄</button>' +
+      '<button onclick="printSlip(\''+slipId+'\')" style="padding:7px 14px;background:var(--red);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px"><i class="ti ti-printer"></i> '+store+' 인쇄</button>' +
       '</div></div>';
   }).join('');
 
