@@ -280,6 +280,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <button class="tab" onclick="showHqTab('edit',this)"><i class="ti ti-edit"></i> 전표수정</button>
     <button class="tab" onclick="showHqTab('slip',this)"><i class="ti ti-file-invoice"></i> 납품전표</button>
     <button class="tab" onclick="showHqTab('return',this)"><i class="ti ti-arrow-back-up"></i> 반품</button>
+    <button class="tab" onclick="showHqTab('supplier',this)"><i class="ti ti-truck-delivery"></i> 협력사</button>
     <button class="tab" onclick="showHqTab('settle',this)"><i class="ti ti-coins"></i> 정산</button>
   </div>
 
@@ -334,6 +335,18 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <button class="btn sm" onclick="loadReturns()"><i class="ti ti-refresh"></i> 새로고침</button>
     </div>
     <div id="hq-return-list"><div class="loading">불러오는 중...</div></div>
+  </div>
+
+  <!-- 협력사 발주 -->
+  <div class="tab-content" id="hq-tab-supplier">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="date" id="supplier-date" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit">
+        <button class="btn sm" onclick="loadSupplierOrders()"><i class="ti ti-search"></i> 조회</button>
+      </div>
+      <button class="btn sm" onclick="loadSupplierOrders()"><i class="ti ti-refresh"></i> 새로고침</button>
+    </div>
+    <div id="hq-supplier-list"><div class="empty"><i class="ti ti-truck-delivery"></i>날짜를 선택하고 조회하세요</div></div>
   </div>
 
   <!-- 정산 관리 -->
@@ -420,6 +433,7 @@ function init() {
   var today = new Date().toISOString().split('T')[0];
   document.getElementById('s-order-date').value = today;
   document.getElementById('hq-order-date').value = today;
+  document.getElementById('supplier-date').value = today;
   var d = new Date();
   document.getElementById('hq-slip-no').value = 'DN-' + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '-001';
 }
@@ -499,6 +513,7 @@ function showHqTab(t, btn) {
   if (t==='dashboard') loadOrders();
   if (t==='edit') { loadOrders(); setTimeout(renderHqEditOrders, 500); }
   if (t==='return') loadReturns();
+  if (t==='supplier') loadSupplierOrders();
   if (t==='settle') loadSettlements();
 }
 
@@ -964,6 +979,45 @@ function rejectReturn(returnId) {
     if (res.result==='success') { alert('반품이 거절되었습니다.'); loadReturns(); }
     else alert('오류: ' + res.message);
   });
+}
+
+// ── 협력사 발주 ──
+function loadSupplierOrders() {
+  var el = document.getElementById('hq-supplier-list');
+  var date = document.getElementById('supplier-date').value;
+  el.innerHTML = '<div class="loading">불러오는 중...</div>';
+  var url = API + '?action=getSupplierOrders' + (date ? '&date=' + date : '');
+  api(url, function(res) {
+    if (res.result === 'success') renderSupplierOrders(res.orders);
+    else el.innerHTML = '<div class="empty">불러오기 실패</div>';
+  }, function() { el.innerHTML = '<div class="empty">서버 연결 실패</div>'; });
+}
+
+function renderSupplierOrders(orders) {
+  var el = document.getElementById('hq-supplier-list');
+  if (!orders || !orders.length) { el.innerHTML = '<div class="empty"><i class="ti ti-truck-delivery"></i>발주 내역이 없습니다</div>'; return; }
+  var supplierMap = {};
+  orders.forEach(function(o) {
+    if (!supplierMap[o.supplier]) supplierMap[o.supplier] = [];
+    supplierMap[o.supplier].push(o);
+  });
+  var suppliers = Object.keys(supplierMap).sort();
+  el.innerHTML = suppliers.map(function(supplier) {
+    var items = supplierMap[supplier];
+    var totalQty = items.reduce(function(s,i){return s+i.qty;}, 0);
+    return '<div class="card" style="margin-bottom:12px">' +
+      '<div style="font-size:15px;font-weight:600;color:var(--red);margin-bottom:10px"><i class="ti ti-truck-delivery"></i> ' + supplier + ' <span style="font-size:12px;color:var(--text2);font-weight:400">총 ' + totalQty + '개</span></div>' +
+      '<table class="slip-table"><thead><tr><th>날짜</th><th>매장</th><th>발주번호</th><th>품목코드</th><th>품목명</th><th style="text-align:right">수량</th></tr></thead><tbody>' +
+      items.map(function(o) {
+        return '<tr><td style="font-size:11px;color:var(--text2)">' + o.date + '</td>' +
+          '<td><strong>' + o.store + '</strong></td>' +
+          '<td style="font-size:11px;color:var(--text2)">' + o.orderId + '</td>' +
+          '<td style="font-size:11px">' + o.code + '</td>' +
+          '<td>' + o.nameKo + '</td>' +
+          '<td style="text-align:right;font-weight:600">' + o.qty + '</td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }).join('');
 }
 
 // ── 정산 관리 ──
