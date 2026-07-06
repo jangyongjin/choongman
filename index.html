@@ -175,6 +175,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <button class="tab active" onclick="showStoreTab('order',this)"><i class="ti ti-clipboard-plus"></i> 발주 입력</button>
     <button class="tab" onclick="showStoreTab('history',this)"><i class="ti ti-history"></i> 발주 내역</button>
     <button class="tab" onclick="showStoreTab('return',this)"><i class="ti ti-arrow-back-up"></i> 반품 내역</button>
+    <button class="tab" onclick="showStoreTab('settle',this)"><i class="ti ti-coins"></i> 정산</button>
   </div>
 
   <!-- 발주 입력 -->
@@ -258,6 +259,14 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <button class="btn sm" onclick="loadReturns()"><i class="ti ti-refresh"></i> 새로고침</button>
     </div>
     <div id="s-return-list"><div class="loading">불러오는 중...</div></div>
+  </div>
+
+  <!-- 정산 내역 -->
+  <div class="tab-content" id="store-tab-settle">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="btn sm" onclick="loadStoreSettle()"><i class="ti ti-refresh"></i> 새로고침</button>
+    </div>
+    <div id="s-settle-list"><div class="loading">불러오는 중...</div></div>
   </div>
 </div>
 
@@ -505,6 +514,7 @@ function showStoreTab(t, btn) {
   document.getElementById('store-tab-'+t).classList.add('active');
   if (t==='history') loadOrders();
   if (t==='return') loadReturns();
+  if (t==='settle') loadStoreSettle();
 }
 function showHqTab(t, btn) {
   document.querySelectorAll('#screen-hq .tab').forEach(function(b){b.classList.remove('active');});
@@ -1044,6 +1054,42 @@ function renderSupplierOrders() {
       }).join('') +
       '</tbody></table></div>';
   }).join('');
+}
+
+// ── 매장 정산 조회 ──
+function loadStoreSettle() {
+  var el = document.getElementById('s-settle-list');
+  el.innerHTML = '<div class="loading">불러오는 중...</div>';
+  api(API + '?action=getStoreSettlements&store=' + encodeURIComponent(currentUser), function(res) {
+    if (res.result === 'success') renderStoreSettle(res.settlements);
+    else el.innerHTML = '<div class="empty">불러오기 실패</div>';
+  }, function() { el.innerHTML = '<div class="empty">서버 연결 실패</div>'; });
+}
+
+function renderStoreSettle(settlements) {
+  var el = document.getElementById('s-settle-list');
+  if (!settlements || !settlements.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-coins"></i>정산 내역이 없습니다</div>';
+    return;
+  }
+  var totalUnpaid = settlements.filter(function(s){return s.status!=='완료';}).reduce(function(sum,s){return sum+s.amt;},0);
+  el.innerHTML =
+    '<div style="background:var(--red-light);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;border-left:4px solid var(--red)">' +
+    '<div style="font-size:12px;color:var(--text2)">미정산 합계</div>' +
+    '<div style="font-size:22px;font-weight:700;color:var(--red)">' + totalUnpaid.toLocaleString() + 'đ</div>' +
+    '</div>' +
+    settlements.map(function(s) {
+      var statusColor = s.status==='완료' ? '#3B6D11' : s.status.indexOf('지연')>=0 ? '#A32D2D' : '#856404';
+      var statusBg = s.status==='완료' ? '#EAF3DE' : s.status.indexOf('지연')>=0 ? '#FCEBEB' : '#FFF3CD';
+      return '<div class="order-card">' +
+        '<div class="order-top">' +
+        '<div><div style="font-size:13px;font-weight:600">' + s.week + '</div>' +
+        '<div style="font-size:15px;font-weight:700;color:var(--red);margin-top:4px">' + s.amt.toLocaleString() + 'đ</div>' +
+        (s.settleDate && s.settleDate !== 'undefined' ? '<div style="font-size:11px;color:var(--text2);margin-top:2px">정산일: ' + s.settleDate.substring(0,10) + '</div>' : '') +
+        '</div>' +
+        '<span style="background:'+statusBg+';color:'+statusColor+';padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600">' + s.status + '</span>' +
+        '</div></div>';
+    }).join('');
 }
 
 // ── 정산 관리 ──
