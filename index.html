@@ -1146,7 +1146,7 @@ function renderSettlements(settlements) {
         var cls = getSettleClass(s.status);
         var badge = getSettleBadge(s.status);
         var completeBtn = s.status !== '완료' ?
-          '<button onclick="showSettleModal(\'' + s.week + '\',\'' + s.store + '\',\'' + s.amt + '\')" style="padding:6px 12px;background:var(--red);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">정산 완료</button>' : '';
+          '<button onclick="showSettleModal(\'' + s.week + '\',\'' + s.store + '\',\'' + s.amt + '\',\'' + s.row + '\')" style="padding:6px 12px;background:var(--red);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">정산 완료</button>' : '';
         return '<div class="settle-card ' + cls + '">' +
           '<div style="display:flex;justify-content:space-between;align-items:center">' +
             '<div>' +
@@ -1165,8 +1165,8 @@ function renderSettlements(settlements) {
   }).join('');
 }
 
-function showSettleModal(week, store, amt) {
-  settleTarget = {week:week, store:store};
+function showSettleModal(week, store, amt, row) {
+  settleTarget = {week:week, store:store, row:row};
   document.getElementById('settle-modal-info').innerHTML =
     '<strong>' + store + '</strong> · ' + week + '<br>' +
     '정산금액: <strong style="color:var(--red)">' + Number(amt).toLocaleString() + 'đ</strong>';
@@ -1181,7 +1181,7 @@ function closeSettleModal() {
 
 function doCompleteSettlement() {
   if (!settleTarget) return;
-  post({action:'completeSettlement', week:settleTarget.week, store:settleTarget.store, note:document.getElementById('settle-note').value.trim()}, function(res) {
+  post({action:'completeSettlement', week:settleTarget.week, store:settleTarget.store, row:settleTarget.row, note:document.getElementById('settle-note').value.trim()}, function(res) {
     if (res.result==='success') { alert('정산이 완료 처리되었습니다!'); closeSettleModal(); loadSettlements(); }
     else alert('오류: ' + res.message);
   });
