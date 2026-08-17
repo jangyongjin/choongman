@@ -290,6 +290,7 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
     <button class="tab" onclick="showHqTab('slip',this)"><i class="ti ti-file-invoice"></i> 납품전표</button>
     <button class="tab" onclick="showHqTab('return',this)"><i class="ti ti-arrow-back-up"></i> 반품</button>
     <button class="tab" onclick="showHqTab('supplier',this)"><i class="ti ti-truck-delivery"></i> 협력사</button>
+    <button class="tab" onclick="showHqTab('stats',this)"><i class="ti ti-chart-bar"></i> 통계</button>
     <button class="tab" onclick="showHqTab('settle',this)"><i class="ti ti-coins"></i> 정산</button>
   </div>
 
@@ -357,6 +358,26 @@ body{font-family:'Be Vietnam Pro','Noto Sans KR',sans-serif;background:var(--bg)
       <div id="supplier-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
     <div id="hq-supplier-list"><div class="empty"><i class="ti ti-truck-delivery"></i>날짜를 선택하고 조회하세요</div></div>
+  </div>
+
+  <!-- 통계 -->
+  <div class="tab-content" id="hq-tab-stats">
+    <div style="margin-bottom:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <select id="stats-period-type" onchange="onStatsPeriodTypeChange()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit">
+          <option value="week">주차별</option>
+          <option value="month">월별</option>
+        </select>
+        <select id="stats-period" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:inherit;flex:1"></select>
+        <button class="btn primary sm" onclick="loadStats()"><i class="ti ti-search"></i> 조회</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="cat-btn active" id="stats-btn-all" onclick="showStatsTab('all',this)">전체 수량순위</button>
+        <button class="cat-btn" id="stats-btn-store" onclick="showStatsTab('store',this)">매장별 수량순위</button>
+        <button class="cat-btn" id="stats-btn-sales" onclick="showStatsTab('sales',this)">품목 매출순위</button>
+      </div>
+    </div>
+    <div id="hq-stats-list"><div class="empty"><i class="ti ti-chart-bar"></i>기간을 선택하고 조회하세요</div></div>
   </div>
 
   <!-- 정산 관리 -->
@@ -525,6 +546,7 @@ function showHqTab(t, btn) {
   if (t==='edit') { loadOrders(); setTimeout(renderHqEditOrders, 500); }
   if (t==='return') loadReturns();
   if (t==='supplier') loadSupplierOrders();
+  if (t==='stats') { initStatsPeriod(); }
   if (t==='settle') loadSettlements();
 }
 
@@ -1054,6 +1076,106 @@ function renderSupplierOrders() {
       }).join('') +
       '</tbody></table></div>';
   }).join('');
+}
+
+// ── 통계 ──
+var statsData = [];
+var currentStatsTab = 'all';
+
+function initStatsPeriod() {
+  onStatsPeriodTypeChange();
+}
+
+function onStatsPeriodTypeChange() {
+  var type = document.getElementById('stats-period-type').value;
+  api(API + '?action=getStatsPeriods&type=' + type, function(res) {
+    if (res.result === 'success') {
+      var sel = document.getElementById('stats-period');
+      sel.innerHTML = res.periods.map(function(p) {
+        return '<option value="' + p + '">' + p + '</option>';
+      }).join('');
+    }
+  });
+}
+
+function showStatsTab(tab, btn) {
+  currentStatsTab = tab;
+  document.querySelectorAll('#hq-tab-stats .cat-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  renderStats();
+}
+
+function loadStats() {
+  var el = document.getElementById('hq-stats-list');
+  var type = document.getElementById('stats-period-type').value;
+  var period = document.getElementById('stats-period').value;
+  if (!period) { el.innerHTML = '<div class="empty">기간을 선택해주세요</div>'; return; }
+  el.innerHTML = '<div class="loading">불러오는 중...</div>';
+  api(API + '?action=getStatsData&type=' + type + '&period=' + encodeURIComponent(period), function(res) {
+    if (res.result === 'success') {
+      statsData = res.data;
+      renderStats();
+    } else { el.innerHTML = '<div class="empty">불러오기 실패</div>'; }
+  }, function() { el.innerHTML = '<div class="empty">서버 연결 실패</div>'; });
+}
+
+function renderStats() {
+  var el = document.getElementById('hq-stats-list');
+  if (!statsData.length) { el.innerHTML = '<div class="empty"><i class="ti ti-chart-bar"></i>데이터가 없습니다</div>'; return; }
+
+  if (currentStatsTab === 'all') {
+    // 전체 수량 순위
+    var itemMap = {};
+    statsData.forEach(function(d) {
+      if (!itemMap[d.code]) itemMap[d.code] = {code:d.code, nameKo:d.nameKo, qty:0};
+      itemMap[d.code].qty += d.qty;
+    });
+    var items = Object.values(itemMap).sort(function(a,b){return b.qty-a.qty;});
+    el.innerHTML = '<div class="card"><div class="card-title"><i class="ti ti-chart-bar"></i> 전체 매장 품목 수량 순위</div>' +
+      '<table class="slip-table"><thead><tr><th>순위</th><th>품목코드</th><th>품목명</th><th style="text-align:right">총 수량</th></tr></thead><tbody>' +
+      items.map(function(item, idx) {
+        var medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':(idx+1)+'위';
+        return '<tr><td style="font-weight:600;color:var(--red)">' + medal + '</td><td style="font-size:11px;color:var(--text2)">' + item.code + '</td><td>' + item.nameKo + '</td><td style="text-align:right;font-weight:600">' + item.qty.toLocaleString() + '개</td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+
+  } else if (currentStatsTab === 'store') {
+    // 매장별 수량 순위
+    var storeMap = {};
+    statsData.forEach(function(d) {
+      if (!storeMap[d.store]) storeMap[d.store] = {};
+      if (!storeMap[d.store][d.code]) storeMap[d.store][d.code] = {code:d.code, nameKo:d.nameKo, qty:0};
+      storeMap[d.store][d.code].qty += d.qty;
+    });
+    var stores = Object.keys(storeMap).sort();
+    el.innerHTML = stores.map(function(store) {
+      var items = Object.values(storeMap[store]).sort(function(a,b){return b.qty-a.qty;});
+      return '<div class="card" style="margin-bottom:12px">' +
+        '<div style="font-size:15px;font-weight:600;color:var(--red);margin-bottom:10px">' + store + '</div>' +
+        '<table class="slip-table"><thead><tr><th>순위</th><th>품목명</th><th style="text-align:right">수량</th></tr></thead><tbody>' +
+        items.map(function(item, idx) {
+          var medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':(idx+1)+'위';
+          return '<tr><td style="font-weight:600;color:var(--red)">' + medal + '</td><td>' + item.nameKo + '</td><td style="text-align:right;font-weight:600">' + item.qty.toLocaleString() + '개</td></tr>';
+        }).join('') +
+        '</tbody></table></div>';
+    }).join('');
+
+  } else if (currentStatsTab === 'sales') {
+    // 품목별 매출 순위
+    var salesMap = {};
+    statsData.forEach(function(d) {
+      if (!salesMap[d.code]) salesMap[d.code] = {code:d.code, nameKo:d.nameKo, amt:0};
+      salesMap[d.code].amt += d.amt;
+    });
+    var items = Object.values(salesMap).sort(function(a,b){return b.amt-a.amt;});
+    el.innerHTML = '<div class="card"><div class="card-title"><i class="ti ti-coins"></i> 품목별 매출 순위</div>' +
+      '<table class="slip-table"><thead><tr><th>순위</th><th>품목코드</th><th>품목명</th><th style="text-align:right">매출금액</th></tr></thead><tbody>' +
+      items.map(function(item, idx) {
+        var medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':(idx+1)+'위';
+        return '<tr><td style="font-weight:600;color:var(--red)">' + medal + '</td><td style="font-size:11px;color:var(--text2)">' + item.code + '</td><td>' + item.nameKo + '</td><td style="text-align:right;font-weight:600">' + item.amt.toLocaleString() + 'đ</td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
 }
 
 // ── 매장 정산 조회 ──
