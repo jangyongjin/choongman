@@ -1169,10 +1169,10 @@ function renderStats() {
     });
     var items = Object.values(salesMap).sort(function(a,b){return b.amt-a.amt;});
     el.innerHTML = '<div class="card"><div class="card-title"><i class="ti ti-coins"></i> 품목별 매출 순위</div>' +
-      '<table class="slip-table"><thead><tr><th>순위</th><th>품목코드</th><th>품목명</th><th style="text-align:right">매출금액</th></tr></thead><tbody>' +
+      '<table class="slip-table"><thead><tr><th>순위</th><th>품목코드</th><th>품목명</th><th style="text-align:right">수량</th><th style="text-align:right">매출금액</th></tr></thead><tbody>' +
       items.map(function(item, idx) {
         var medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':(idx+1)+'위';
-        return '<tr><td style="font-weight:600;color:var(--red)">' + medal + '</td><td style="font-size:11px;color:var(--text2)">' + item.code + '</td><td>' + item.nameKo + '</td><td style="text-align:right;font-weight:600">' + item.amt.toLocaleString() + 'đ</td></tr>';
+        return '<tr><td style="font-weight:600;color:var(--red)">' + medal + '</td><td style="font-size:11px;color:var(--text2)">' + item.code + '</td><td>' + item.nameKo + '</td><td style="text-align:right">' + item.qty.toLocaleString() + '개</td><td style="text-align:right;font-weight:600">' + item.amt.toLocaleString() + 'đ</td></tr>';
       }).join('') +
       '</tbody></table></div>';
   }
