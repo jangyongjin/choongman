@@ -1164,7 +1164,8 @@ function renderStats() {
     // 품목별 매출 순위
     var salesMap = {};
     statsData.forEach(function(d) {
-      if (!salesMap[d.code]) salesMap[d.code] = {code:d.code, nameKo:d.nameKo, amt:0};
+      if (!salesMap[d.code]) salesMap[d.code] = {code:d.code, nameKo:d.nameKo, qty:0, amt:0};
+      salesMap[d.code].qty += d.qty;
       salesMap[d.code].amt += d.amt;
     });
     var items = Object.values(salesMap).sort(function(a,b){return b.amt-a.amt;});
