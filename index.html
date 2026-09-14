@@ -1270,6 +1270,8 @@ function renderSettlements(settlements) {
         var badge = getSettleBadge(s.status);
         var completeBtn = s.status !== '완료' ?
           '<button onclick="showSettleModal(\'' + s.week + '\',\'' + s.store + '\',\'' + s.amt + '\',\'' + s.row + '\')" style="padding:6px 12px;background:var(--red);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">정산 완료</button>' : '';
+        var hideBtn = s.status === '완료' ?
+          '<button onclick="hideSettle(\'' + s.week + '\',\'' + s.store + '\',\'' + s.row + '\')" style="padding:6px 12px;background:#6B6B6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">숨김</button>' : '';
         return '<div class="settle-card ' + cls + '">' +
           '<div style="display:flex;justify-content:space-between;align-items:center">' +
             '<div>' +
@@ -1279,13 +1281,21 @@ function renderSettlements(settlements) {
               (s.note ? '<div style="font-size:11px;color:var(--text2)">비고: ' + s.note + '</div>' : '') +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">' +
-              badge + completeBtn +
+              badge + completeBtn + hideBtn +
             '</div>' +
           '</div>' +
         '</div>';
       }).join('') +
     '</div>';
   }).join('');
+}
+
+function hideSettle(week, store, row) {
+  if (!confirm(store + ' ' + week + ' 정산을 숨기시겠습니까?')) return;
+  post({action:'completeSettlement', hide:'Y', week:week, store:store, row:row}, function(res) {
+    if (res.result==='success') { loadSettlements(); }
+    else alert('오류: ' + res.message);
+  });
 }
 
 function showSettleModal(week, store, amt, row) {
